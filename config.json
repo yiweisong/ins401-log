@@ -1,0 +1,10 @@
+{
+  "devices":[
+    "aa:bb:cc",
+    "aa:bb:cc"
+  ],
+  "local":{
+    "name":"network",
+    "mac":"xx:yy:zz"
+  }
+}
