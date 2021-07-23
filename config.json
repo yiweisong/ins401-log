@@ -6,5 +6,12 @@
   "local": {
     "name": "network",
     "mac": "88:66:44:22:00:44"
+  },
+  "ntrip":{
+    "ip": "58.215.20.43",
+    "port": 2201,
+    "mountPoint": "WX02",
+    "username": "ymj_123",
+    "password": "SIGEMZOOMQ1JDJI3"
   }
 }

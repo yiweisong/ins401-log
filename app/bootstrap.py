@@ -9,6 +9,7 @@ from .device import (create_device, INS401)
 class Bootstrap(object):
     _devices = None
     _rtcm_logger = None
+    _conf = None
 
     def __init__(self):
         self._devices = []
@@ -25,9 +26,9 @@ class Bootstrap(object):
         return app_conf
 
     def _ping_devices(self):
-        conf = self._load_conf()
-        for item in conf["devices"]:
-            device = create_device(item, conf["local"])
+        self._conf = self._load_conf()
+        for item in self._conf["devices"]:
+            device = create_device(item, self._conf["local"])
             if device:
                 self._devices.append(device)
 
@@ -37,7 +38,7 @@ class Bootstrap(object):
     def _handle_parse_ntrip_data(self, data):
         # log to rtcm_rover.log
         if self._rtcm_logger:
-            self._rtcm_logger.append(data)
+            self._rtcm_logger.append(bytes(data))
 
         # send data to device list
         for device in self._devices:
@@ -50,7 +51,7 @@ class Bootstrap(object):
             3. start ntrip client
         '''
         self._ping_devices()
-        self._ntrip_client = NTRIPClient()
+        self._ntrip_client = NTRIPClient(self._conf['ntrip'])
         self._ntrip_client.on('parsed', self._handle_parse_ntrip_data)
         self._ntrip_client.start()
 

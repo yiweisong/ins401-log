@@ -48,7 +48,7 @@ def handle_receive_packet(data: Packet):
     src = raw_data[6:12]
     device_mac = convert_bytes_to_string(src, ':')
 
-    PING_RESULT[device_mac] = data
+    PING_RESULT[device_mac] = raw_data
 
 
 def create_device(device_mac, local_network):
@@ -103,7 +103,7 @@ class INS401(object):
         sendp(wrapped_packet_data, iface=self._iface, verbose=0)
 
     def handle_receive_packet(self, data):
-        self._user_logger.append(data)
+        self._user_logger.append(bytes(data))
 
     def start(self):
         '''

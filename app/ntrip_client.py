@@ -31,7 +31,7 @@ class NTRIPClient(EventEmitter):
                 self.password = x["value"]
 
     def run(self):
-        APP_CONTEXT.get_print_logger().info('NTRIP run..')
+        # APP_CONTEXT.get_print_logger().info('NTRIP run..')
         while True:
             if self.is_close:
                 if self.tcp_client_socket:
@@ -52,12 +52,12 @@ class NTRIPClient(EventEmitter):
             recvData = self.recvResponse()
 
             if recvData != None and recvData.find(b'ICY 200 OK') != -1:
-                print_helper.print_on_console('NTRIP:[request] ok', skip_modes=[APP_TYPE.CLI])
-                APP_CONTEXT.get_print_logger().info('NTRIP:[request] ok')
+                print('NTRIP:[request] ok')
+                # APP_CONTEXT.get_print_logger().info('NTRIP:[request] ok')
                 self.recv()
             else:
-                print_helper.print_on_console('NTRIP:[request] fail', skip_modes=[APP_TYPE.CLI])
-                APP_CONTEXT.get_print_logger().info('NTRIP:[request] fail')
+                print('NTRIP:[request] fail')
+                # APP_CONTEXT.get_print_logger().info('NTRIP:[request] fail')
                 self.tcp_client_socket.close()
 
     def set_connect_headers(self, headers:dict):
