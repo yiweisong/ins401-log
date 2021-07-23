@@ -26,12 +26,16 @@ def calc_crc(payload):
     return [crc_msb, crc_lsb]
 
 
+def conver_string_to_bytes(string_value, spliter=':'):
+    return bytes([int(x, 16) for x in string_value.split(spliter)])
+
+
 def build(dst_mac, src_mac, pkt, payload=[]):
     '''
     Build final packet
     '''
     packet = []
-    packet.extend(payload)
+    packet.extend(pkt)
     msg_len = len(payload)
 
     packet_len = struct.pack("<I", msg_len)
@@ -43,7 +47,7 @@ def build(dst_mac, src_mac, pkt, payload=[]):
     payload_len = struct.pack('<H', len(COMMAND_START) + len(final_packet) + 2)
 
     whole_packet = []
-    header = dst_mac + src_mac + bytes(payload_len)
+    header = conver_string_to_bytes(dst_mac) + conver_string_to_bytes(src_mac) + bytes(payload_len)
     whole_packet.extend(header)
 
     whole_packet.extend(COMMAND_START)

@@ -1,7 +1,7 @@
 import time
 import os
 import struct
-from scapy.sendrecv import (AsyncSniffer, sendp)
+from scapy.all import (AsyncSniffer, sendp)
 from scapy.packet import Packet
 from . import message
 from . import app_logger

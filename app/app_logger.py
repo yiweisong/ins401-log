@@ -1,6 +1,5 @@
 import os
 import time
-from posixpath import dirname
 from io import FileIO
 
 

@@ -1,10 +1,10 @@
 {
-  "devices":[
-    "aa:bb:cc",
-    "aa:bb:cc"
+  "devices": [
+    "12:34:56:78:65:43",
+    "22:33:44:55:66:77"
   ],
-  "local":{
-    "name":"network",
-    "mac":"xx:yy:zz"
+  "local": {
+    "name": "network",
+    "mac": "88:66:44:22:00:44"
   }
 }

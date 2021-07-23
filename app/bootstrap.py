@@ -1,12 +1,13 @@
 import time
-
+import json
+import os
 from . import app_logger
 from .ntrip_client import NTRIPClient
 from .device import (create_device, INS401)
 
 
 class Bootstrap(object):
-    _devices: list[INS401]
+    _devices = None
     _rtcm_logger = None
 
     def __init__(self):
@@ -14,11 +15,14 @@ class Bootstrap(object):
 
         # prepare logger
         app_logger.new_session()
-        
+
         self._rtcm_logger = app_logger.create_logger('rtcm_rover')
 
     def _load_conf(self):
-        return {}
+        app_conf = {}
+        with open(os.path.join(os.getcwd(), 'config.json')) as json_data:
+            app_conf = (json.load(json_data))
+        return app_conf
 
     def _ping_devices(self):
         conf = self._load_conf()
