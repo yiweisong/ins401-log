@@ -1,14 +1,18 @@
 import time
 import os
 import struct
+import re
 from scapy.all import (AsyncSniffer, sendp)
 from scapy.packet import Packet
 from . import message
 from . import app_logger
+from .ntrip_client import NTRIPClient
 
 PING_RESULT = {}
 
 PING_PKT = b'\x01\xcc'
+
+ETHERNET_OUTPUT_PACKETS = [b'\x02\n', b'\x03\n', b'\x05\n', b'\x06\n']
 
 
 def convert_bytes_to_string(bytes_data, link=''):
@@ -85,12 +89,68 @@ def create_device(device_mac, local_network):
     return None
 
 
+def nmea_checksum(self, data):
+    data = data.replace("\r", "").replace("\n", "").replace("$", "")
+    nmeadata, cksum = re.split('\*', data)
+    calc_cksum = 0
+    for s in nmeadata:
+        calc_cksum ^= ord(s)
+    return int(cksum, 16), calc_cksum
+
+
+def try_parse_nmea(data):
+    nmea_buffer = []
+    nmea_sync = 0
+    is_nmea_packet = False
+    str_nmea = ''
+
+    for bytedata in data:
+        if bytedata == 0x24:
+            nmea_buffer = []
+            nmea_sync = 0
+            nmea_buffer.append(chr(bytedata))
+        else:
+            nmea_buffer.append(chr(bytedata))
+            if nmea_sync == 0:
+                if bytedata == 0x0D:
+                    nmea_sync = 1
+            elif nmea_sync == 1:
+                if bytedata == 0x0A:
+                    try:
+                        str_nmea = ''.join(nmea_buffer)
+                        cksum, calc_cksum = nmea_checksum(
+                            str_nmea)
+                        if cksum == calc_cksum:
+                            if str_nmea.find("$GPGGA") != -1:
+                                is_nmea_packet = True
+                                break
+                    except Exception as e:
+                        # print('NMEA fault:{0}'.format(e))
+                        pass
+                nmea_buffer = []
+                nmea_sync = 0
+
+    return is_nmea_packet, str_nmea
+
+
+def try_parse_ethernet_data(data):
+    is_eth_100base_t1 = False
+    ethernet_packet_type = data[16:18]
+
+    if ETHERNET_OUTPUT_PACKETS.__contains__(ethernet_packet_type):
+        is_eth_100base_t1 = True
+
+    return is_eth_100base_t1, ethernet_packet_type
+
+
 class INS401(object):
     def __init__(self, iface,  machine_mac, device_mac, sn):
         self._iface = iface
         self._machine_mac = machine_mac
         self._device_mac = device_mac
         self._user_logger = app_logger.create_logger(os.path.join(sn, 'user'))
+        self._rtcm_rover_logger = app_logger.create_logger(
+            os.path.join(sn, 'rtcm_rover'))
 
     def recv(self, data):
         # send rtcm to device
@@ -102,8 +162,23 @@ class INS401(object):
 
         sendp(wrapped_packet_data, iface=self._iface, verbose=0)
 
+    def set_ntrip_client(self, ntrip_client: NTRIPClient):
+        self._ntrip_client = ntrip_client
+
     def handle_receive_packet(self, data):
-        self._user_logger.append(bytes(data))
+        # parse the data
+        is_nmea, str_nmea = try_parse_nmea(bytes(data))
+        if is_nmea:
+            self._ntrip_client.send(str_nmea)
+
+        is_eth_100base_t1, ethernet_packet_type = try_parse_ethernet_data(
+            bytes(data))
+
+        if is_eth_100base_t1:
+            if ethernet_packet_type == b'\x06\n':
+                self._rtcm_rover_logger.append(bytes(data))
+            else:
+                self._user_logger.append(bytes(data))
 
     def start(self):
         '''
