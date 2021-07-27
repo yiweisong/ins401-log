@@ -57,7 +57,7 @@ class Bootstrap(object):
         for device in self._devices:
             device.set_ntrip_client(self._ntrip_client)
 
-        self._ntrip_client.start()
+        self._ntrip_client.run()
         
         print('Application started')
 

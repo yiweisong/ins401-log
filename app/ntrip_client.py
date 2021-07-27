@@ -18,17 +18,11 @@ class NTRIPClient(EventEmitter):
         self.is_close = False
         self.append_header_string= None
 
-        for x in properties["initial"]["ntrip"]:
-            if x['name'] == 'ip':
-                self.ip = x["value"]
-            elif x['name'] == 'port':
-                self.port = x["value"]
-            elif x['name'] == 'mountPoint':
-                self.mountPoint = x["value"]
-            elif x['name'] == 'username':
-                self.username = x["value"]
-            elif x['name'] == 'password':
-                self.password = x["value"]
+        self.ip = properties["ip"]
+        self.port = properties["port"]
+        self.mountPoint = properties["mountPoint"]
+        self.username = properties["username"]
+        self.password = properties["password"]
 
     def run(self):
         # APP_CONTEXT.get_print_logger().info('NTRIP run..')
