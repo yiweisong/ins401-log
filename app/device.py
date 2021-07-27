@@ -12,7 +12,7 @@ PING_RESULT = {}
 
 PING_PKT = b'\x01\xcc'
 
-ETHERNET_OUTPUT_PACKETS = [b'\x02\n', b'\x03\n', b'\x05\n', b'\x06\n']
+ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n', b'\x03\n', b'\x04\n', b'\x05\n', b'\x06\n']
 
 
 def convert_bytes_to_string(bytes_data, link=''):
@@ -167,18 +167,20 @@ class INS401(object):
 
     def handle_receive_packet(self, data):
         # parse the data
-        is_nmea, str_nmea = try_parse_nmea(bytes(data))
+        bytes_data = bytes(data)
+        is_nmea, str_nmea = try_parse_nmea(bytes_data)
         if is_nmea:
             self._ntrip_client.send(str_nmea)
+            self._user_logger.append(bytes_data)
+            return
 
-        is_eth_100base_t1, ethernet_packet_type = try_parse_ethernet_data(
-            bytes(data))
-
+        is_eth_100base_t1, ethernet_packet_type = try_parse_ethernet_data(bytes_data)
         if is_eth_100base_t1:
             if ethernet_packet_type == b'\x06\n':
-                self._rtcm_rover_logger.append(bytes(data))
+                self._rtcm_rover_logger.append(bytes_data)
             else:
-                self._user_logger.append(bytes(data))
+                self._user_logger.append(bytes_data)
+            return
 
     def start(self):
         '''
