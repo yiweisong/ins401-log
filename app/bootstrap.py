@@ -17,7 +17,9 @@ class Bootstrap(object):
         # prepare logger
         app_logger.new_session()
 
-        self._rtcm_logger = app_logger.create_logger('rtcm_base')
+        file_time = time.strftime(
+                    "%Y_%m_%d_%H_%M_%S", time.localtime())
+        self._rtcm_logger = app_logger.create_logger('rtcm_base_' + file_time)
 
     def _load_conf(self):
         app_conf = {}
@@ -53,12 +55,11 @@ class Bootstrap(object):
         self._ping_devices()
         self._ntrip_client = NTRIPClient(self._conf['ntrip'])
         self._ntrip_client.on('parsed', self._handle_parse_ntrip_data)
-
         for device in self._devices:
-            device.set_ntrip_client(self._ntrip_client)
+           device.set_ntrip_client(self._ntrip_client)
 
         self._ntrip_client.run()
-        
+
         print('Application started')
 
         while True:

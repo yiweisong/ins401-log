@@ -41,7 +41,7 @@ def new_session():
 
 
 def create_logger(file_path) -> FileLogger:
-    file_path = '{0}.log'.format(file_path)
+    file_path = '{0}.bin'.format(file_path)
     abs_file_path = os.path.join(LogContext.session_path, file_path)
     dir_name = os.path.dirname(abs_file_path)
     if not os.path.isdir(dir_name):
