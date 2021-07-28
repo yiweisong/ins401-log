@@ -200,7 +200,7 @@ class INS401(object):
         '''
             start log
         '''
-        filter_exp = 'ether src host {0}'.format(self._mac)
+        filter_exp = 'ether src host {0}'.format(self._device_mac)
 
         async_sniffer = AsyncSniffer(
             count=0,
