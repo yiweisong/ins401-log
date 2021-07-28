@@ -59,7 +59,7 @@ def handle_receive_packet(data: Packet):
 def create_device(device_mac, local_network):
     # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
     #     device_mac)
-    filter_exp = 'ether dst host {0} and ether[16:2] == 0x01cc'.format(
+    filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
         device_mac)
 
     command_line = message.build(
@@ -76,29 +76,32 @@ def create_device(device_mac, local_network):
 
     async_sniffer.start()
     sendp(command_line, iface=local_network["name"], verbose=0)
-    time.sleep(1)
+    time.sleep(2)
     async_sniffer.stop()
 
     if not PING_RESULT.__contains__(device_mac):
         return None
 
     info = parse_ping_info(PING_RESULT[device_mac])
-
+    print(info)
     if info:
         iface = local_network["name"]
         machine_mac = local_network["mac"]
-        return INS401(iface, machine_mac, device_mac, info.sn)
+        return INS401(iface, machine_mac, device_mac, info['sn'])
 
     return None
 
 
-def nmea_checksum(self, data):
-    data = data.replace("\r", "").replace("\n", "").replace("$", "")
-    nmeadata, cksum = re.split('\*', data)
-    calc_cksum = 0
-    for s in nmeadata:
-        calc_cksum ^= ord(s)
-    return int(cksum, 16), calc_cksum
+def nmea_checksum(data):
+    if data is not None:
+        data = data.replace("\r", "").replace("\n", "").replace("$", "")
+        nmeadata, cksum = re.split('\*', data)
+        calc_cksum = 0
+        for s in nmeadata:
+            calc_cksum ^= ord(s)
+        return int(cksum, 16), calc_cksum
+    else:
+        return None
 
 
 def try_parse_nmea(data):
@@ -151,9 +154,14 @@ class INS401(object):
         self._iface = iface
         self._machine_mac = machine_mac
         self._device_mac = device_mac
-        self._user_logger = app_logger.create_logger(os.path.join(sn, 'user'))
+        self._ntrip_client = None
+
+        file_time = time.strftime(
+            "%Y_%m_%d_%H_%M_%S", time.localtime())
+        self._user_logger = app_logger.create_logger(
+            os.path.join(sn, 'user_'+file_time))
         self._rtcm_rover_logger = app_logger.create_logger(
-            os.path.join(sn, 'rtcm_rover'))
+            os.path.join(sn, 'rtcm_rover_'+file_time))
 
     def recv(self, data):
         # send rtcm to device
@@ -171,6 +179,7 @@ class INS401(object):
     def handle_receive_packet(self, data):
         # parse the data
         bytes_data = bytes(data)
+
         is_nmea, str_nmea = try_parse_nmea(bytes_data)
         if is_nmea:
             if self._ntrip_client:
@@ -194,6 +203,7 @@ class INS401(object):
         filter_exp = 'ether src host {0}'.format(self._mac)
 
         async_sniffer = AsyncSniffer(
+            count=0,
             iface=self._iface,
             prn=self.handle_receive_packet,
             filter=filter_exp
