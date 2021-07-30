@@ -108,7 +108,8 @@ def try_parse_nmea(data):
     nmea_buffer = []
     nmea_sync = 0
     is_nmea_packet = False
-    str_nmea = ''
+    str_nmea = None
+    str_gga = None
 
     for bytedata in data:
         if bytedata == 0x24:
@@ -127,8 +128,9 @@ def try_parse_nmea(data):
                         cksum, calc_cksum = nmea_checksum(
                             str_nmea)
                         if cksum == calc_cksum:
+                            is_nmea_packet = True
                             if str_nmea.find("$GPGGA") != -1:
-                                is_nmea_packet = True
+                                str_gga = str_nmea
                                 break
                     except Exception as e:
                         # print('NMEA fault:{0}'.format(e))
@@ -136,7 +138,7 @@ def try_parse_nmea(data):
                 nmea_buffer = []
                 nmea_sync = 0
 
-    return is_nmea_packet, str_nmea
+    return is_nmea_packet, str_gga
 
 
 def try_parse_ethernet_data(data):
@@ -180,11 +182,12 @@ class INS401(object):
         # parse the data
         bytes_data = bytes(data)
 
-        is_nmea, str_nmea = try_parse_nmea(bytes_data)
+        is_nmea, str_gga = try_parse_nmea(bytes_data)
         if is_nmea:
-            if self._ntrip_client:
-                self._ntrip_client.send(str_nmea)
-                self._user_logger.append(bytes_data)
+            self._user_logger.append(bytes_data)
+
+            if self._ntrip_client and str_gga:
+                self._ntrip_client.send(str_gga)    
             return
 
         is_eth_100base_t1, ethernet_packet_type = try_parse_ethernet_data(
