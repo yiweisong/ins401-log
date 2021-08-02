@@ -7,6 +7,7 @@ from scapy.packet import Packet
 from . import message
 from . import app_logger
 from .ntrip_client import NTRIPClient
+from .context import APP_CONTEXT
 
 PING_RESULT = {}
 
@@ -184,20 +185,31 @@ class INS401(object):
 
         is_nmea, str_gga = try_parse_nmea(bytes_data)
         if is_nmea:
+            self._append_to_app_context_packet_data('nmea')
+
             self._user_logger.append(bytes_data)
 
             if self._ntrip_client and str_gga:
-                self._ntrip_client.send(str_gga)    
+                self._ntrip_client.send(str_gga)
             return
 
         is_eth_100base_t1, ethernet_packet_type = try_parse_ethernet_data(
             bytes_data)
         if is_eth_100base_t1:
+            self._append_to_app_context_packet_data(
+                ethernet_packet_type.decode())
+
             if ethernet_packet_type == b'\x06\n':
                 self._rtcm_rover_logger.append(bytes_data)
             else:
                 self._user_logger.append(bytes_data)
             return
+
+    def _append_to_app_context_packet_data(str_key):
+        if APP_CONTEXT.packet_data.get(str_key):
+            APP_CONTEXT.packet_data[str_key] += 1
+        else:
+            APP_CONTEXT.packet_data[str_key] = 0
 
     def start(self):
         '''

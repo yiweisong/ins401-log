@@ -1,10 +1,16 @@
 import time
 import json
 import os
+import threading
 from . import app_logger
 from .ntrip_client import NTRIPClient
 from .device import (create_device, INS401)
+from .debug import log_debug
+from .context import APP_CONTEXT
 
+
+def format_app_context_packet_data():
+    return ', '.join(['{0}: {1}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 class Bootstrap(object):
     _devices = None
@@ -46,6 +52,17 @@ class Bootstrap(object):
         for device in self._devices:
             device.recv(data)
 
+    def start_debug_track(self):
+        # track the log status per second
+        while True:
+            try:
+                str_log_info = format_app_context_packet_data()
+                log_debug(str_log_info)
+                time.sleep(1)
+            except Exception as ex:
+                log_debug(ex)
+                return
+
     def start(self):
         ''' prepare
             1. ping device from configuration
@@ -59,7 +76,10 @@ class Bootstrap(object):
         for device in self._devices:
             device.set_ntrip_client(self._ntrip_client)
 
-        self._ntrip_client.run()
+        # thread to start ntrip client
+        threading.Thread(target=lambda: self._ntrip_client.run()).start()
+        # thread to start debug track
+        threading.Thread(target=lambda: self.start_debug_track()).start()
 
         print('Application started')
 
