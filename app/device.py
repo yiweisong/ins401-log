@@ -145,11 +145,21 @@ def try_parse_nmea(data):
 def try_parse_ethernet_data(data):
     is_eth_100base_t1 = False
     ethernet_packet_type = data[16:18]
+    packet_info = None
 
     if ETHERNET_OUTPUT_PACKETS.__contains__(ethernet_packet_type):
         is_eth_100base_t1 = True
+        packet_len = struct.unpack('<H', data[12:14])[0]
+        raw = data[14:14+packet_len]
+        payload_len = struct.unpack('<I', data[18:22])[0]
+        payload = data[22:22+payload_len]
+        packet_info = {
+            'raw': raw,
+            'payload': payload,
+            'packet_type': ethernet_packet_type
+        }
 
-    return is_eth_100base_t1, ethernet_packet_type
+    return is_eth_100base_t1, packet_info
 
 
 class INS401(object):
@@ -193,16 +203,16 @@ class INS401(object):
                 self._ntrip_client.send(str_gga)
             return
 
-        is_eth_100base_t1, ethernet_packet_type = try_parse_ethernet_data(
+        is_eth_100base_t1, packet_info = try_parse_ethernet_data(
             bytes_data)
         if is_eth_100base_t1:
             self._append_to_app_context_packet_data(
-                ethernet_packet_type.decode())
+                packet_info['packet_type'].decode())
 
-            if ethernet_packet_type == b'\x06\n':
-                self._rtcm_rover_logger.append(bytes_data)
+            if packet_info['packet_type'] == b'\x06\n':
+                self._rtcm_rover_logger.append(packet_info['payload'])
             else:
-                self._user_logger.append(bytes_data)
+                self._user_logger.append(packet_info['raw'])
             return
 
     def _append_to_app_context_packet_data(str_key):
