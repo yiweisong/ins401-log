@@ -18,6 +18,9 @@ class FileLogger:
 
     def append(self, data):
         self._internal_file_access.write(data)
+		
+    def flush(self):
+        self._internal_file_access.flush()
 
 
 def new_session():

@@ -7,12 +7,14 @@ from scapy.packet import Packet
 from . import message
 from . import app_logger
 from .ntrip_client import NTRIPClient
+from .context import APP_CONTEXT
 
 PING_RESULT = {}
 
 PING_PKT = b'\x01\xcc'
 
-ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n', b'\x03\n', b'\x04\n', b'\x05\n', b'\x06\n']
+ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n',
+                           b'\x03\n', b'\x04\n', b'\x05\n', b'\x06\n']
 
 
 def convert_bytes_to_string(bytes_data, link=''):
@@ -56,11 +58,13 @@ def handle_receive_packet(data: Packet):
 
 
 def create_device(device_mac, local_network):
+    # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
+    #     device_mac)
     filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
         device_mac)
 
     command_line = message.build(
-        dst_mac="ff:ff:ff:ff:ff:ff",#device_mac,
+        dst_mac="ff:ff:ff:ff:ff:ff",  # device_mac,
         src_mac=local_network['mac'],
         pkt=PING_PKT,
         payload=[])
@@ -105,8 +109,9 @@ def try_parse_nmea(data):
     nmea_buffer = []
     nmea_sync = 0
     is_nmea_packet = False
-    str_nmea = ''
-    
+    str_nmea = None
+    str_gga = None
+
     for bytedata in data:
         if bytedata == 0x24:
             nmea_buffer = []
@@ -124,26 +129,37 @@ def try_parse_nmea(data):
                         cksum, calc_cksum = nmea_checksum(
                             str_nmea)
                         if cksum == calc_cksum:
+                            is_nmea_packet = True
                             if str_nmea.find("$GPGGA") != -1:
-                                is_nmea_packet = True
+                                str_gga = str_nmea
                                 break
                     except Exception as e:
-                        # print('NMEA fault:{0}'.format(e))
+                        #print('NMEA fault:{0}'.format(e))
                         pass
                 nmea_buffer = []
                 nmea_sync = 0
 
-    return is_nmea_packet, str_nmea
+    return is_nmea_packet, str_gga
 
 
 def try_parse_ethernet_data(data):
     is_eth_100base_t1 = False
     ethernet_packet_type = data[16:18]
+    packet_info = None
 
     if ETHERNET_OUTPUT_PACKETS.__contains__(ethernet_packet_type):
         is_eth_100base_t1 = True
+        packet_len = struct.unpack('<H', data[12:14])[0]
+        raw = data[14:14+packet_len]
+        payload_len = struct.unpack('<I', data[18:22])[0]
+        payload = data[22:22+payload_len]
+        packet_info = {
+            'raw': raw,
+            'payload': payload,
+            'packet_type': ethernet_packet_type
+        }
 
-    return is_eth_100base_t1, ethernet_packet_type
+    return is_eth_100base_t1, packet_info
 
 
 class INS401(object):
@@ -152,14 +168,13 @@ class INS401(object):
         self._machine_mac = machine_mac
         self._device_mac = device_mac
         self._ntrip_client = None
-        
-        file_time = time.strftime(
-                    "%Y_%m_%d_%H_%M_%S", time.localtime())
-        self._user_logger = app_logger.create_logger(os.path.join(sn, 'user_' + file_time))
-        self._rtcm_rover_logger = app_logger.create_logger(
-            os.path.join(sn, 'rtcm_rover_' + file_time))
-        # self._user_raw_logger = app_logger.create_logger(os.path.join(sn, 'user_raw_' + file_time))
 
+        file_time = time.strftime(
+            "%Y_%m_%d_%H_%M_%S", time.localtime())
+        self._user_logger = app_logger.create_logger(
+            os.path.join(sn, 'user_'+file_time))
+        self._rtcm_rover_logger = app_logger.create_logger(
+            os.path.join(sn, 'rtcm_rover_'+file_time))
 
     def recv(self, data):
         # send rtcm to device
@@ -168,6 +183,7 @@ class INS401(object):
             src_mac=self._machine_mac,
             pkt=b'\x02\x0b',
             payload=data)
+
         sendp(wrapped_packet_data, iface=self._iface, verbose=0)
 
     def set_ntrip_client(self, ntrip_client: NTRIPClient):
@@ -176,22 +192,37 @@ class INS401(object):
     def handle_receive_packet(self, data):
         # parse the data
         bytes_data = bytes(data)
-        # self._user_raw_logger.append(bytes_data)
 
-        is_nmea, str_nmea = try_parse_nmea(bytes_data)
+        is_nmea, str_gga = try_parse_nmea(bytes_data)
         if is_nmea:
-            if self._ntrip_client:
-                self._ntrip_client.send(str_nmea)
-                self._user_logger.append(bytes_data)
+            self._append_to_app_context_packet_data('nmea')
+
+            self._user_logger.append(bytes_data)
+            self._user_logger.flush()
+
+            if self._ntrip_client and str_gga:
+                self._ntrip_client.send(str_gga)
             return
 
-        is_eth_100base_t1, ethernet_packet_type = try_parse_ethernet_data(bytes_data)
+        is_eth_100base_t1, packet_info = try_parse_ethernet_data(
+            bytes_data)
         if is_eth_100base_t1:
-            if ethernet_packet_type == b'\x06\n':
-                self._rtcm_rover_logger.append(bytes_data)
+            self._append_to_app_context_packet_data(
+                packet_info['packet_type'].decode())
+
+            if packet_info['packet_type'] == b'\x06\n':
+                self._rtcm_rover_logger.append(packet_info['payload'])
+                self._rtcm_rover_logger.flush()
             else:
-                self._user_logger.append(bytes_data)
+                self._user_logger.append(packet_info['raw'])
+                self._user_logger.flush()
             return
+
+    def _append_to_app_context_packet_data(self,str_key):
+        if APP_CONTEXT.packet_data.get(str_key):
+            APP_CONTEXT.packet_data[str_key] += 1
+        else:
+            APP_CONTEXT.packet_data[str_key] = 0
 
     def start(self):
         '''

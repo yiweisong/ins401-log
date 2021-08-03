@@ -1,10 +1,16 @@
 import time
 import json
 import os
+import threading
 from . import app_logger
 from .ntrip_client import NTRIPClient
 from .device import (create_device, INS401)
+from .debug import track_log_status
+from .context import APP_CONTEXT
 
+
+def format_app_context_packet_data():
+    return ', '.join(['{0}: {1}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 class Bootstrap(object):
     _devices = None
@@ -18,7 +24,7 @@ class Bootstrap(object):
         app_logger.new_session()
 
         file_time = time.strftime(
-                    "%Y_%m_%d_%H_%M_%S", time.localtime())
+            "%Y_%m_%d_%H_%M_%S", time.localtime())
         self._rtcm_logger = app_logger.create_logger('rtcm_base_' + file_time)
 
     def _load_conf(self):
@@ -46,6 +52,17 @@ class Bootstrap(object):
         for device in self._devices:
             device.recv(data)
 
+    def start_debug_track(self):
+        # track the log status per second
+        while True:
+            try:
+                str_log_info = format_app_context_packet_data()
+                track_log_status(str_log_info)
+                time.sleep(1)
+            except Exception as ex:
+                track_log_status(ex)
+                return
+
     def start(self):
         ''' prepare
             1. ping device from configuration
@@ -55,10 +72,14 @@ class Bootstrap(object):
         self._ping_devices()
         self._ntrip_client = NTRIPClient(self._conf['ntrip'])
         self._ntrip_client.on('parsed', self._handle_parse_ntrip_data)
-        for device in self._devices:
-           device.set_ntrip_client(self._ntrip_client)
 
-        self._ntrip_client.run()
+        for device in self._devices:
+            device.set_ntrip_client(self._ntrip_client)
+
+        # thread to start ntrip client
+        threading.Thread(target=lambda: self._ntrip_client.run()).start()
+        # thread to start debug track
+        #threading.Thread(target=lambda: self.start_debug_track()).start()
 
         print('Application started')
 
