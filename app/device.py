@@ -13,6 +13,8 @@ PING_RESULT = {}
 
 PING_PKT = b'\x01\xcc'
 
+SET_PARAMETER_PKT = b'\x03\xcc'
+
 ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n',
                            b'\x03\n', b'\x04\n', b'\x05\n', b'\x06\n']
 
@@ -56,10 +58,48 @@ def handle_receive_packet(data: Packet):
 
     PING_RESULT[device_mac] = raw_data
 
+def build_config_parameters_command_lines(device_conf, local_network):
+    command_lines = []
+    device_mac = device_conf['mac']
+    local_machine_mac = local_network['mac']
+    local_machine_iface = local_network["name"]
+    for parameter_config in device_conf['predefinedParameters']:
+        payload=[]
+        parameter_id = struct.pack('<I',parameter_config['paramId'])
+        parameter_value = struct.pack('<f', parameter_config['value'])
+        payload.extend(parameter_id)
+        payload.extend(parameter_value)
 
-def create_device(device_mac, local_network):
+        command_line = message.build(
+            dst_mac=device_mac,
+            src_mac=local_machine_mac,
+            pkt=SET_PARAMETER_PKT,
+            payload=payload)
+        command_lines.append(command_line)
+        
+    return command_lines
+
+
+def config_parameters(device_conf,local_network):
+    '''
+        1. set predefined parameters (done)
+        2. load current parameters (need?)
+        3. compare current parameters with predefined (need?)
+    '''
+    if not device_conf.__contains__('predefinedParameters') and \
+    not isinstance(device_conf['predefinedParameters'],list):
+        return
+
+    command_lines = build_config_parameters_command_lines()
+    for command_line in command_lines:
+        sendp(command_line, iface=local_network["name"], verbose=0)
+        time.sleep(0.2)
+
+
+def create_device(device_conf, local_network):
     # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
     #     device_mac)
+    device_mac = device_conf['mac']
     filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
         device_mac)
 
@@ -85,6 +125,9 @@ def create_device(device_mac, local_network):
 
     info = parse_ping_info(PING_RESULT[device_mac])
     print(info)
+
+    config_parameters(device_conf,local_network)
+
     if info:
         iface = local_network["name"]
         machine_mac = local_network["mac"]
