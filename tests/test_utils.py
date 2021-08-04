@@ -33,6 +33,10 @@ if __name__ == '__main__':
             app_conf['devices'].append(device_conf)
 
     for item in app_conf['devices']:
+        if not item.__contains__('predefinedParameters') and \
+            not isinstance(item.get('predefinedParameters'), list):
+            continue
+        
         print(item['mac'], isinstance(item['predefinedParameters'], list))
         command_lines = build_config_parameters_command_lines(item,app_conf['local'])
         for command_line in command_lines:
