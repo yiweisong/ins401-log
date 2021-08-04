@@ -8,7 +8,6 @@ from .device import (create_device, INS401)
 from .debug import track_log_status
 from .context import APP_CONTEXT
 
-
 def format_app_context_packet_data():
     return ', '.join(['{0}: {1}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
@@ -61,6 +60,7 @@ class Bootstrap(object):
                 time.sleep(1)
             except Exception as ex:
                 track_log_status(ex)
+
                 return
 
     def start(self):
@@ -79,7 +79,8 @@ class Bootstrap(object):
         # thread to start ntrip client
         threading.Thread(target=lambda: self._ntrip_client.run()).start()
         # thread to start debug track
-        #threading.Thread(target=lambda: self.start_debug_track()).start()
+        threading.Thread(target=lambda: self.start_debug_track()).start()
+
 
         print('Application started')
 

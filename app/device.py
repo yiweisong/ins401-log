@@ -200,6 +200,7 @@ class INS401(object):
             self._user_logger.append(bytes_data)
             self._user_logger.flush()
 
+
             if self._ntrip_client and str_gga:
                 self._ntrip_client.send(str_gga)
             return
