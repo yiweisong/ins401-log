@@ -2,8 +2,10 @@ import time
 import os
 import struct
 import re
+import threading
 from scapy.all import (AsyncSniffer, sendp)
 from scapy.packet import Packet
+from scapy.sendrecv import sniff
 from . import message
 from . import app_logger
 from .ntrip_client import NTRIPClient
@@ -77,7 +79,7 @@ def create_device(device_mac, local_network):
 
     async_sniffer.start()
     sendp(command_line, iface=local_network["name"], verbose=0)
-    time.sleep(2)
+    time.sleep(3)
     async_sniffer.stop()
 
     if not PING_RESULT.__contains__(device_mac):
@@ -209,7 +211,7 @@ class INS401(object):
             bytes_data)
         if is_eth_100base_t1:
             self._append_to_app_context_packet_data(
-                packet_info['packet_type'].decode())
+                str(packet_info['packet_type']))
 
             if packet_info['packet_type'] == b'\x06\n':
                 self._rtcm_rover_logger.append(packet_info['payload'])
@@ -220,7 +222,7 @@ class INS401(object):
             return
 
     def _append_to_app_context_packet_data(self,str_key):
-        if APP_CONTEXT.packet_data.get(str_key):
+        if str_key in APP_CONTEXT.packet_data.keys():
             APP_CONTEXT.packet_data[str_key] += 1
         else:
             APP_CONTEXT.packet_data[str_key] = 0
@@ -233,6 +235,7 @@ class INS401(object):
 
         async_sniffer = AsyncSniffer(
             count=0,
+            store=0,
             iface=self._iface,
             prn=self.handle_receive_packet,
             filter=filter_exp

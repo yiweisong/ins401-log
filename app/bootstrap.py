@@ -9,7 +9,7 @@ from .debug import track_log_status
 from .context import APP_CONTEXT
 
 def format_app_context_packet_data():
-    return ', '.join(['{0}: {1}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
+    return ', '.join(['{}: {}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 class Bootstrap(object):
     _devices = None
