@@ -1,0 +1,65 @@
+{
+    "mac": "04:00:00:00:00:04",
+    "predefinedParameters": [
+        {
+            "paramId": 1,
+            "name": "gnss lever arm x",
+            "value": 1.19
+        },
+        {
+            "paramId": 2,
+            "name": "gnss lever arm y",
+            "value": -0.24
+        },
+        {
+            "paramId": 3,
+            "name": "gnss lever arm z",
+            "value": -0.9
+        },
+        {
+            "paramId": 4,
+            "name": "vrp lever arm x",
+            "value": 0.0
+        },
+        {
+            "paramId": 5,
+            "name": "vrp lever arm y",
+            "value": 0.0
+        },
+        {
+            "paramId": 6,
+            "name": "vrp lever arm z",
+            "value": 0.0
+        },
+        {
+            "paramId": 7,
+            "name": "user lever arm x",
+            "value": 1.19
+        },
+        {
+            "paramId": 8,
+            "name": "user lever arm y",
+            "value": -0.24
+        },
+        {
+            "paramId": 9,
+            "name": "user lever arm z",
+            "value": -0.9
+        },
+        {
+            "paramId": 10,
+            "name": "rotation rbvx",
+            "value": 0.0
+        },
+        {
+            "paramId": 11,
+            "name": "rotation rbvy",
+            "value": 0.0
+        },
+        {
+            "paramId": 12,
+            "name": "rotation rbvz",
+            "value": 0.0
+        }
+    ]
+}

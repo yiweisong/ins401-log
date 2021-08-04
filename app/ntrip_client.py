@@ -36,8 +36,8 @@ class NTRIPClient(EventEmitter):
             while True:
                 # if self.communicator.can_write():
                 time.sleep(3)
+                self.is_connected = self.doConnect()
                 if self.is_connected == 0:
-                    self.is_connected = self.doConnect()
                     time.sleep(3)
                 else:
                     break

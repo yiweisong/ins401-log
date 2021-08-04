@@ -7,6 +7,7 @@ from .ntrip_client import NTRIPClient
 from .device import (create_device, INS401)
 from .debug import track_log_status
 from .context import APP_CONTEXT
+from .utils import list_files 
 
 def format_app_context_packet_data():
     return ', '.join(['{}: {}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
@@ -30,14 +31,34 @@ class Bootstrap(object):
         app_conf = {}
         with open(os.path.join(os.getcwd(), 'config.json')) as json_data:
             app_conf = (json.load(json_data))
+
+        # load device config
+        device_config_paths = list_files(os.path.join(os.getcwd(),'configs','devices'))
+
+        for path in device_config_paths:
+            with open(path) as json_data:
+                device_conf = json.load(json_data)
+                if not device_conf.__contains__('mac'):
+                    continue
+
+                if not app_conf.__contains__('devices'):
+                    app_conf['devices'] = []
+                
+                app_conf['devices'].append(device_conf)
+
         return app_conf
 
     def _ping_devices(self):
         self._conf = self._load_conf()
+
         for item in self._conf["devices"]:
             device = create_device(item, self._conf["local"])
             if device:
                 self._devices.append(device)
+
+        if len(self._devices)==0:
+            print('No device detected')
+            return
 
         for device in self._devices:
             device.start()

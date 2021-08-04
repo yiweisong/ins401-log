@@ -1,8 +1,4 @@
 {
-  "devices": [
-    "04:00:00:00:00:04",
-    "05:00:00:00:00:05"
-  ],
   "local": {
     "name": "Intel(R) Ethernet Connection (10) I219-V",
     "mac": "74:78:27:78:48:A4"
