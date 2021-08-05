@@ -154,11 +154,10 @@ def handle_receive_get_parameter_packet(device_conf, data: Packet):
     # payload_len_start=18
     payload_body_start = 22
     #payload_len = struct.unpack('<I', data[payload_len_start:payload_len_start+4])[0]
-
     parameter_id = struct.unpack(
-        '<I', data[payload_body_start:payload_body_start+4])[0]
+        '<I', raw_data[payload_body_start:payload_body_start+4])[0]
     parameter_value = struct.unpack(
-        '<f', data[payload_body_start+4:payload_body_start+12])[0]
+        '<f', raw_data[payload_body_start+4:payload_body_start+8])[0]
 
     parameter_name = next(
         (item['name'] for item in device_conf['parameters'] if item['paramId'] == parameter_id), 'unknown')
@@ -219,8 +218,12 @@ def save_device_info(device_conf, local_network, data_log_info, device_info, app
     result = get_parameters(device_conf, local_network)
 
     device_configuration = None
-    file_path = os.path.join(
+    file_path = os.path.join(app_logger.LogContext.session_path,
         data_log_info['data_log_path'], 'configuration.json')
+
+    dir_name = os.path.dirname(file_path)
+    if not os.path.isdir(dir_name):
+        os.makedirs(dir_name,exist_ok=True)
 
     if not os.path.exists(file_path):
         device_configuration = []
@@ -293,16 +296,18 @@ def create_device(device_conf, local_network):
 
         try:
             config_parameters(device_conf, local_network)
-        except:
+        except Exception as ex:
             print('Fail in config parameter. Device mac {0}, sn {1}'.format(
                 device_mac, device_info['sn']))
+            print(ex)
 
         try:
             save_device_info(device_conf, local_network,
                              data_log_info, device_info, app_info)
-        except:
+        except Exception as ex:
             print('Fail in save device info. Device mac {0}, sn {1}'.format(
                 device_mac, device_info['sn']))
+            print(ex)
 
         iface = local_network["name"]
         machine_mac = local_network["mac"]
