@@ -4,6 +4,7 @@ import struct
 import re
 import threading
 import json
+import decimal
 from scapy.all import (AsyncSniffer, sendp)
 from scapy.packet import Packet
 from . import message
@@ -31,13 +32,17 @@ def convert_bytes_to_string(bytes_data, link=''):
     return link.join(['%02x' % b for b in bytes_data])
 
 
-def parse_device_info(str_device_info):
+def parse_device_info(str_device_info,str_app_info):
     split_text = str_device_info.split(' ')
+
+    app_split_text = str_app_info.split(' ')
 
     if len(str_device_info) >= 3:
         return {
             'name': split_text[0],
+            'imu': split_text[0],
             'pn': split_text[1],
+            "firmware_version": app_split_text[2],
             'sn': split_text[2]
         }
     return None
@@ -46,11 +51,10 @@ def parse_device_info(str_device_info):
 def parse_app_info(str_app_info):
     split_text = str_app_info.split(' ')
 
-    if len(split_text) >= 5:
+    if len(split_text) >= 2:
         return {
             'app_name': split_text[0],
-            'app_version': split_text[1] + split_text[2],
-            'bootloader_version': split_text[3] + split_text[4],
+            'version': str_app_info,
         }
 
     return None
@@ -73,7 +77,7 @@ def parse_ping_info(bytes_data: bytes):
             device_info_text = info_text[0]
             app_info_text = 'RTK_INS' + info_text[1]
 
-            device_info = parse_device_info(device_info_text)
+            device_info = parse_device_info(device_info_text,app_info_text)
             app_info = parse_app_info(app_info_text)
 
             return device_info, app_info
@@ -158,6 +162,12 @@ def handle_receive_get_parameter_packet(device_conf, data: Packet):
         '<I', raw_data[payload_body_start:payload_body_start+4])[0]
     parameter_value = struct.unpack(
         '<f', raw_data[payload_body_start+4:payload_body_start+8])[0]
+
+    decimal_wrapped = decimal.Decimal(parameter_value)
+    try:
+        parameter_value = float(round(decimal_wrapped, 4))
+    except:
+        parameter_value = 0
 
     parameter_name = next(
         (item['name'] for item in device_conf['parameters'] if item['paramId'] == parameter_id), 'unknown')
@@ -274,8 +284,8 @@ def create_device(device_conf, local_network):
     )
 
     async_sniffer.start()
-    sendp(command_line, iface=local_network["name"], verbose=0)
-    time.sleep(2)
+    sendp(command_line, iface=local_network["name"], verbose=0, count=2)
+    time.sleep(1)
     async_sniffer.stop()
 
     if not PING_RESULT.__contains__(device_mac):
