@@ -2,18 +2,21 @@ import time
 import json
 import os
 import threading
+from typing import List
 from . import app_logger
 from .ntrip_client import NTRIPClient
 from .device import (create_device, INS401)
 from .debug import track_log_status
 from .context import APP_CONTEXT
-from .utils import list_files 
+from .utils import list_files
+
 
 def format_app_context_packet_data():
-    return ', '.join(['{}: {}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
+    return ', '.join(['{}: {}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
+
 
 class Bootstrap(object):
-    _devices = None
+    _devices: List[INS401] = []
     _rtcm_logger = None
     _conf = None
 
@@ -33,7 +36,8 @@ class Bootstrap(object):
             app_conf = (json.load(json_data))
 
         # load device config
-        device_config_paths = list_files(os.path.join(os.getcwd(),'configs','devices'))
+        device_config_paths = list_files(
+            os.path.join(os.getcwd(), 'configs', 'devices'))
 
         for path in device_config_paths:
             with open(path) as json_data:
@@ -43,7 +47,7 @@ class Bootstrap(object):
 
                 if not app_conf.__contains__('devices'):
                     app_conf['devices'] = []
-                
+
                 app_conf['devices'].append(device_conf)
 
         return app_conf
@@ -56,7 +60,7 @@ class Bootstrap(object):
             if device:
                 self._devices.append(device)
 
-        if len(self._devices)==0:
+        if len(self._devices) == 0:
             print('No device detected')
             return
 
@@ -94,14 +98,21 @@ class Bootstrap(object):
         self._ntrip_client = NTRIPClient(self._conf['ntrip'])
         self._ntrip_client.on('parsed', self._handle_parse_ntrip_data)
 
-        for device in self._devices:
-            device.set_ntrip_client(self._ntrip_client)
+        if len(self._devices) > 0:
+            sn = self._devices[0].device_info['sn']
+            pn = self._devices[0].device_info['pn']
+            self._ntrip_client.set_connect_headers({
+                'Ntrip-Sn': sn,
+                'Ntrip-Pn': pn
+            })
+
+            for device in self._devices:
+                device.set_ntrip_client(self._ntrip_client)
 
         # thread to start ntrip client
         threading.Thread(target=lambda: self._ntrip_client.run()).start()
         # thread to start debug track
         threading.Thread(target=lambda: self.start_debug_track()).start()
-
 
         print('Application started')
 
