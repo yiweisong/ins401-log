@@ -296,7 +296,7 @@ def create_device(device_conf, local_network):
 
     if device_info:
         file_time = time.strftime(
-            "%Y_%m_%d_%H_%M_%S", time.localtime())
+            "%Y%m%d_%H%M%S", time.localtime())
         data_log_path = '{0}_log_{1}'.format('ins401', file_time)
 
         data_log_info = {
