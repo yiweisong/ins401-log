@@ -8,6 +8,5 @@ def kill_app(signal_int, call_back):
     os.kill(os.getpid(), signal.SIGTERM)
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, kill_app)
-
+    #signal.signal(signal.SIGINT, kill_app)
     Bootstrap().start()

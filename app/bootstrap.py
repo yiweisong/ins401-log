@@ -9,6 +9,7 @@ from .device import (create_device, INS401)
 from .debug import track_log_status
 from .context import APP_CONTEXT
 from .utils import list_files
+from .decorator import handle_application_exception
 
 
 def format_app_context_packet_data():
@@ -50,6 +51,9 @@ class Bootstrap(object):
 
                 app_conf['devices'].append(device_conf)
 
+        if not app_conf.__contains__('devices'):
+            app_conf['devices'] = []
+
         return app_conf
 
     def _ping_devices(self):
@@ -88,6 +92,7 @@ class Bootstrap(object):
 
                 return
 
+    @handle_application_exception
     def start(self):
         ''' prepare
             1. ping device from configuration
@@ -112,7 +117,7 @@ class Bootstrap(object):
         # thread to start ntrip client
         threading.Thread(target=lambda: self._ntrip_client.run()).start()
         # thread to start debug track
-        threading.Thread(target=lambda: self.start_debug_track()).start()
+        # threading.Thread(target=lambda: self.start_debug_track()).start()
 
         print('Application started')
 
