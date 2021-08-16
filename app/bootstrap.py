@@ -4,9 +4,9 @@ import os
 import threading
 from typing import List
 from . import app_logger
+from .debug import track_log_status
 from .ntrip_client import NTRIPClient
 from .device import (create_device, INS401)
-from .debug import track_log_status
 from .context import APP_CONTEXT
 from .utils import list_files
 from .decorator import handle_application_exception
@@ -84,13 +84,14 @@ class Bootstrap(object):
         # track the log status per second
         while True:
             try:
+                APP_CONTEXT.packet_data['sniffer_status'] = [
+                    device.device_info['sn'] for device in self._devices if device.sniffer_running]
+
                 str_log_info = format_app_context_packet_data()
                 track_log_status(str_log_info)
                 time.sleep(1)
             except Exception as ex:
                 track_log_status(ex)
-
-                return
 
     @handle_application_exception
     def start(self):
@@ -117,7 +118,7 @@ class Bootstrap(object):
         # thread to start ntrip client
         threading.Thread(target=lambda: self._ntrip_client.run()).start()
         # thread to start debug track
-        # threading.Thread(target=lambda: self.start_debug_track()).start()
+        threading.Thread(target=lambda: self.start_debug_track()).start()
 
         print('Application started')
 

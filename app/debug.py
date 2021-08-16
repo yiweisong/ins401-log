@@ -14,7 +14,9 @@ if not os.path.exists(folder_path):
 logging.basicConfig(filename=file_path, filemode='w+',
                     level=logging.INFO, format=LOG_FORMAT)
 
-log_debug = logging.getLogger("debug")
+#log_runtime = logging.getLogger("scapy.runtime")
+
+log_debug = logging.getLogger("ins401-log.debug")
 
 def track_log_status(message, *args):
     log_debug.info(message, *args)

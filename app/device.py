@@ -32,7 +32,7 @@ def convert_bytes_to_string(bytes_data, link=''):
     return link.join(['%02x' % b for b in bytes_data])
 
 
-def parse_device_info(str_device_info,str_app_info):
+def parse_device_info(str_device_info, str_app_info):
     split_text = str_device_info.split(' ')
 
     app_split_text = str_app_info.split(' ')
@@ -77,7 +77,7 @@ def parse_ping_info(bytes_data: bytes):
             device_info_text = info_text[0]
             app_info_text = 'RTK_INS' + info_text[1]
 
-            device_info = parse_device_info(device_info_text,app_info_text)
+            device_info = parse_device_info(device_info_text, app_info_text)
             app_info = parse_app_info(app_info_text)
 
             return device_info, app_info
@@ -229,11 +229,11 @@ def save_device_info(device_conf, local_network, data_log_info, device_info, app
 
     device_configuration = None
     file_path = os.path.join(app_logger.LogContext.session_path,
-        data_log_info['data_log_path'], 'configuration.json')
+                             data_log_info['data_log_path'], 'configuration.json')
 
     dir_name = os.path.dirname(file_path)
     if not os.path.isdir(dir_name):
-        os.makedirs(dir_name,exist_ok=True)
+        os.makedirs(dir_name, exist_ok=True)
 
     if not os.path.exists(file_path):
         device_configuration = []
@@ -284,8 +284,9 @@ def create_device(device_conf, local_network):
     )
 
     async_sniffer.start()
-    sendp(command_line, iface=local_network["name"], verbose=0, count=2)
-    time.sleep(1)
+    time.sleep(.2)
+    sendp(command_line, iface=local_network["name"], verbose=0, count=1)
+    time.sleep(.5)
     async_sniffer.stop()
 
     if not PING_RESULT.__contains__(device_mac):
@@ -407,6 +408,7 @@ class INS401(object):
         self._ntrip_client = None
         self._device_info = device_info
         self._app_info = app_info
+        self._async_sniffer = None
 
         self._data_log_path = data_log_info['data_log_path']
         self._user_logger = app_logger.create_logger(
@@ -425,6 +427,10 @@ class INS401(object):
     @property
     def data_log_path(self):
         return self._data_log_path
+
+    @property
+    def sniffer_running(self):
+        return self._async_sniffer.running
 
     def recv(self, data):
         # send rtcm to device
@@ -448,7 +454,7 @@ class INS401(object):
             self._append_to_app_context_packet_data('nmea')
 
             self._user_logger.append(bytes_data)
-            self._user_logger.flush()
+            # self._user_logger.flush()
 
             if self._ntrip_client and str_gga:
                 self._ntrip_client.send(str_gga)
@@ -462,14 +468,13 @@ class INS401(object):
 
             if packet_info['packet_type'] == b'\x06\n':
                 self._rtcm_rover_logger.append(packet_info['payload'])
-                self._rtcm_rover_logger.flush()
+                # self._rtcm_rover_logger.flush()
             else:
                 self._user_logger.append(packet_info['raw'])
-                self._user_logger.flush()
+                # self._user_logger.flush()
             return
 
     def _append_to_app_context_packet_data(self, str_key):
-
         if str_key in APP_CONTEXT.packet_data.keys():
             APP_CONTEXT.packet_data[str_key] += 1
         else:
@@ -490,3 +495,5 @@ class INS401(object):
         )
 
         async_sniffer.start()
+
+        self._async_sniffer = async_sniffer
