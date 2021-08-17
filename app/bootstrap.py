@@ -6,7 +6,7 @@ from typing import List
 from . import app_logger
 from .debug import track_log_status
 from .ntrip_client import NTRIPClient
-from .device import (create_device, INS401)
+from .device import (create_device, send_ping_command, INS401)
 from .context import APP_CONTEXT
 from .utils import list_files
 from .decorator import handle_application_exception
@@ -82,14 +82,21 @@ class Bootstrap(object):
 
     def start_debug_track(self):
         # track the log status per second
+        check_count = 0
         while True:
+            time.sleep(1)
+            check_count += 1
             try:
                 APP_CONTEXT.packet_data['sniffer_status'] = [
                     device.device_info['sn'] for device in self._devices if device.sniffer_running]
 
                 str_log_info = format_app_context_packet_data()
                 track_log_status(str_log_info)
-                time.sleep(1)
+
+                # Send ping command to device per 60s to check if device is alive
+                if check_count % 60 == 0:
+                    for device in self._devices:
+                        send_ping_command(device)
             except Exception as ex:
                 track_log_status(ex)
 
@@ -119,6 +126,10 @@ class Bootstrap(object):
         threading.Thread(target=lambda: self._ntrip_client.run()).start()
         # thread to start debug track
         threading.Thread(target=lambda: self.start_debug_track()).start()
+
+        # if len(self._devices) == 0:
+        #     print('Application Exit')
+        #     return
 
         print('Application started')
 

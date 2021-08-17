@@ -28,6 +28,105 @@ ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n',
                            b'\x03\n', b'\x04\n', b'\x05\n', b'\x06\n']
 
 
+class INS401(object):
+    def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
+        self._iface = iface
+        self._machine_mac = machine_mac
+        self._device_mac = device_mac
+        self._ntrip_client = None
+        self._device_info = device_info
+        self._app_info = app_info
+        self._async_sniffer = None
+
+        self._data_log_path = data_log_info['data_log_path']
+        self._user_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
+        self._rtcm_rover_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
+
+    @property
+    def device_info(self):
+        return self._device_info
+
+    @property
+    def app_info(self):
+        return self._app_info
+
+    @property
+    def data_log_path(self):
+        return self._data_log_path
+
+    @property
+    def sniffer_running(self):
+        return self._async_sniffer.running
+
+    def recv(self, data):
+        # send rtcm to device
+        wrapped_packet_data = message.build(
+            dst_mac=self._device_mac,
+            src_mac=self._machine_mac,
+            pkt=b'\x02\x0b',
+            payload=data)
+
+        sendp(wrapped_packet_data, iface=self._iface, verbose=0)
+
+    def set_ntrip_client(self, ntrip_client: NTRIPClient):
+        self._ntrip_client = ntrip_client
+
+    def handle_receive_packet(self, data):
+        # parse the data
+        bytes_data = bytes(data)
+
+        is_nmea, str_gga = try_parse_nmea(bytes_data)
+        if is_nmea:
+            self._append_to_app_context_packet_data('nmea')
+
+            self._user_logger.append(bytes_data)
+            # self._user_logger.flush()
+
+            if self._ntrip_client and str_gga:
+                self._ntrip_client.send(str_gga)
+            return
+
+        is_eth_100base_t1, packet_info = try_parse_ethernet_data(
+            bytes_data)
+        if is_eth_100base_t1:
+            self._append_to_app_context_packet_data(
+                str(packet_info['packet_type']))
+
+            if packet_info['packet_type'] == b'\x06\n':
+                self._rtcm_rover_logger.append(packet_info['payload'])
+                # self._rtcm_rover_logger.flush()
+            else:
+                self._user_logger.append(packet_info['raw'])
+                # self._user_logger.flush()
+            return
+
+    def _append_to_app_context_packet_data(self, str_key):
+        if str_key in APP_CONTEXT.packet_data.keys():
+            APP_CONTEXT.packet_data[str_key] += 1
+        else:
+            APP_CONTEXT.packet_data[str_key] = 0
+
+    def start(self):
+        '''
+            start log
+        '''
+        filter_exp = 'ether src host {0}'.format(self._device_mac)
+
+        async_sniffer = AsyncSniffer(
+            count=0,
+            store=0,
+            iface=self._iface,
+            prn=self.handle_receive_packet,
+            filter=filter_exp
+        )
+
+        async_sniffer.start()
+
+        self._async_sniffer = async_sniffer
+
+
 def convert_bytes_to_string(bytes_data, link=''):
     return link.join(['%02x' % b for b in bytes_data])
 
@@ -400,100 +499,11 @@ def try_parse_ethernet_data(data):
     return is_eth_100base_t1, packet_info
 
 
-class INS401(object):
-    def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
-        self._iface = iface
-        self._machine_mac = machine_mac
-        self._device_mac = device_mac
-        self._ntrip_client = None
-        self._device_info = device_info
-        self._app_info = app_info
-        self._async_sniffer = None
+def send_ping_command(device: INS401):
+    command_line = message.build(
+        dst_mac=device._device_mac,  # device_mac,
+        src_mac=device._machine_mac,
+        pkt=PING_PKT,
+        payload=[])
 
-        self._data_log_path = data_log_info['data_log_path']
-        self._user_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
-        self._rtcm_rover_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
-
-    @property
-    def device_info(self):
-        return self._device_info
-
-    @property
-    def app_info(self):
-        return self._app_info
-
-    @property
-    def data_log_path(self):
-        return self._data_log_path
-
-    @property
-    def sniffer_running(self):
-        return self._async_sniffer.running
-
-    def recv(self, data):
-        # send rtcm to device
-        wrapped_packet_data = message.build(
-            dst_mac=self._device_mac,
-            src_mac=self._machine_mac,
-            pkt=b'\x02\x0b',
-            payload=data)
-
-        sendp(wrapped_packet_data, iface=self._iface, verbose=0)
-
-    def set_ntrip_client(self, ntrip_client: NTRIPClient):
-        self._ntrip_client = ntrip_client
-
-    def handle_receive_packet(self, data):
-        # parse the data
-        bytes_data = bytes(data)
-
-        is_nmea, str_gga = try_parse_nmea(bytes_data)
-        if is_nmea:
-            self._append_to_app_context_packet_data('nmea')
-
-            self._user_logger.append(bytes_data)
-            # self._user_logger.flush()
-
-            if self._ntrip_client and str_gga:
-                self._ntrip_client.send(str_gga)
-            return
-
-        is_eth_100base_t1, packet_info = try_parse_ethernet_data(
-            bytes_data)
-        if is_eth_100base_t1:
-            self._append_to_app_context_packet_data(
-                str(packet_info['packet_type']))
-
-            if packet_info['packet_type'] == b'\x06\n':
-                self._rtcm_rover_logger.append(packet_info['payload'])
-                # self._rtcm_rover_logger.flush()
-            else:
-                self._user_logger.append(packet_info['raw'])
-                # self._user_logger.flush()
-            return
-
-    def _append_to_app_context_packet_data(self, str_key):
-        if str_key in APP_CONTEXT.packet_data.keys():
-            APP_CONTEXT.packet_data[str_key] += 1
-        else:
-            APP_CONTEXT.packet_data[str_key] = 0
-
-    def start(self):
-        '''
-            start log
-        '''
-        filter_exp = 'ether src host {0}'.format(self._device_mac)
-
-        async_sniffer = AsyncSniffer(
-            count=0,
-            store=0,
-            iface=self._iface,
-            prn=self.handle_receive_packet,
-            filter=filter_exp
-        )
-
-        async_sniffer.start()
-
-        self._async_sniffer = async_sniffer
+    sendp(command_line, iface=device._iface, verbose=0, count=1)
