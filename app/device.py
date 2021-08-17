@@ -37,6 +37,7 @@ class INS401(object):
         self._device_info = device_info
         self._app_info = app_info
         self._async_sniffer = None
+        self._enable_send_parsed_nmea = False
 
         self._data_log_path = data_log_info['data_log_path']
         self._user_logger = app_logger.create_logger(
@@ -59,6 +60,14 @@ class INS401(object):
     @property
     def sniffer_running(self):
         return self._async_sniffer.running
+
+    @property
+    def enable_send_parsed_nmea(self):
+        return self._enable_send_parsed_nmea
+
+    @enable_send_parsed_nmea.setter
+    def enable_send_parsed_nmea(self, value: bool):
+        self._enable_send_parsed_nmea = value
 
     def recv(self, data):
         # send rtcm to device
@@ -84,7 +93,7 @@ class INS401(object):
             self._user_logger.append(bytes_data)
             # self._user_logger.flush()
 
-            if self._ntrip_client and str_gga:
+            if self._ntrip_client and str_gga and self._enable_send_parsed_nmea:
                 self._ntrip_client.send(str_gga)
             return
 
