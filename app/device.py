@@ -24,7 +24,7 @@ SET_PARAMETER_PKT = b'\x03\xcc'
 
 SAVE_CONFIG_PKT = b'\x04\xcc'
 
-ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n',
+ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n', PING_PKT,
                            b'\x03\n', b'\x04\n', b'\x05\n', b'\x06\n']
 
 
@@ -115,7 +115,7 @@ class INS401(object):
         if str_key in APP_CONTEXT.packet_data.keys():
             APP_CONTEXT.packet_data[str_key] += 1
         else:
-            APP_CONTEXT.packet_data[str_key] = 0
+            APP_CONTEXT.packet_data[str_key] = 1
 
     def start(self):
         '''
