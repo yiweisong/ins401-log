@@ -355,7 +355,7 @@ def save_device_info(device_conf, local_network, data_log_info, device_info, app
                                              time.localtime())
         session_info['device'] = device_info
         session_info['app'] = app_info
-        session_info['interface'] = '100bast-t1'
+        session_info['interface'] = '100base-t1'
         parameters_configuration = dict()
         for item in result:
             param_name = item['name']
