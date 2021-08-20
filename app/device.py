@@ -59,7 +59,7 @@ class INS401(object):
 
     @property
     def sniffer_running(self):
-        return self._async_sniffer.running
+        return self._async_sniffer.running and self._async_sniffer.continue_sniff
 
     @property
     def enable_send_parsed_nmea(self):
