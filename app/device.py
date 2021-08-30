@@ -349,27 +349,27 @@ def save_device_info(device_conf, local_network, data_log_info, device_info, app
         with open(file_path) as json_data:
             device_configuration = (list)(json.load(json_data))
 
-    if len(result) > 0:
-        session_info = dict()
-        session_info['time'] = time.strftime("%Y-%m-%d %H:%M:%S",
-                                             time.localtime())
-        session_info['device'] = device_info
-        session_info['app'] = app_info
-        session_info['interface'] = '100base-t1'
-        parameters_configuration = dict()
-        for item in result:
-            param_name = item['name']
-            param_value = item['value']
-            parameters_configuration[param_name] = param_value
+    #if len(result) > 0:
+    session_info = dict()
+    session_info['time'] = time.strftime("%Y-%m-%d %H:%M:%S",
+                                            time.localtime())
+    session_info['device'] = device_info
+    session_info['app'] = app_info
+    session_info['interface'] = '100base-t1'
+    parameters_configuration = dict()
+    for item in result:
+        param_name = item['name']
+        param_value = item['value']
+        parameters_configuration[param_name] = param_value
 
-        session_info['parameters'] = parameters_configuration
-        device_configuration.append(session_info)
+    session_info['parameters'] = parameters_configuration
+    device_configuration.append(session_info)
 
-        with open(file_path, 'w') as outfile:
-            json.dump(device_configuration,
-                      outfile,
-                      indent=4,
-                      ensure_ascii=False)
+    with open(file_path, 'w') as outfile:
+        json.dump(device_configuration,
+                    outfile,
+                    indent=4,
+                    ensure_ascii=False)
 
 
 def create_device(device_conf, local_network):
@@ -421,7 +421,7 @@ def create_device(device_conf, local_network):
         except Exception as ex:
             print('Fail in config parameter. Device mac {0}, sn {1}'.format(
                 device_mac, device_info['sn']))
-            print(ex)
+            raise
 
         try:
             save_device_info(device_conf, local_network,
@@ -429,7 +429,7 @@ def create_device(device_conf, local_network):
         except Exception as ex:
             print('Fail in save device info. Device mac {0}, sn {1}'.format(
                 device_mac, device_info['sn']))
-            print(ex)
+            raise
 
         iface = local_network["name"]
         machine_mac = local_network["mac"]
