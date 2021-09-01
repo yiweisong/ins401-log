@@ -310,8 +310,9 @@ def get_parameter(parameter_id, device_conf, local_network):
     )
 
     async_sniffer.start()
-    sendp(command_line, iface=local_network["name"], verbose=0)
     time.sleep(0.2)
+    sendp(command_line, iface=local_network["name"], verbose=0)
+    time.sleep(0.5)
     async_sniffer.stop()
 
     return GET_PARAMETER_RESULT[parameter_id]

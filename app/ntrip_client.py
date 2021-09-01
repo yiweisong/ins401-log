@@ -17,7 +17,7 @@ class NTRIPClient(EventEmitter):
         self.is_connected = 0
         self.tcp_client_socket = None
         self.is_close = False
-        self.append_header_string= None
+        self.append_header_string = None
 
         self.ip = properties["ip"]
         self.port = properties["port"]
@@ -55,21 +55,23 @@ class NTRIPClient(EventEmitter):
                 log_app.info('NTRIP:[request] fail')
                 self.tcp_client_socket.close()
 
-    def set_connect_headers(self, headers:dict):
+    def set_connect_headers(self, headers: dict):
         self.append_header_string = ''
         for key in headers.keys():
-            self.append_header_string += '{0}: {1}\r\n'.format(key, headers[key])
+            self.append_header_string += '{0}: {1}\r\n'.format(
+                key, headers[key])
 
     def clear_connect_headers(self):
         self.append_header_string = None
-
 
     def doConnect(self):
         self.is_connected = 0
         self.tcp_client_socket = socket(AF_INET, SOCK_STREAM)
         try:
-            print('NTRIP:[connect] {0}:{1} start...'.format(self.ip, self.port))
-            log_app.info('NTRIP:[connect] {0}:{1} start...'.format(self.ip, self.port))
+            print('NTRIP:[connect] {0}:{1} on {2} start...'.format(
+                self.ip, self.port, self.mountPoint))
+            log_app.info('NTRIP:[connect] {0}:{1} on {2} start...'.format(
+                self.ip, self.port, self.mountPoint))
 
             self.tcp_client_socket.connect((self.ip, self.port))
             print('NTRIP:[connect] ok')
@@ -91,7 +93,8 @@ class NTRIPClient(EventEmitter):
             ntripRequestStr += 'Authorization: Basic '
             apikey = self.username + ':' + self.password
             apikeyBytes = apikey.encode("utf-8")
-            ntripRequestStr += base64.b64encode(apikeyBytes).decode("utf-8")+'\r\n'
+            ntripRequestStr += base64.b64encode(
+                apikeyBytes).decode("utf-8")+'\r\n'
             ntripRequestStr += '\r\n'
             # print(ntripRequestStr)
             self.send(ntripRequestStr)
@@ -116,7 +119,7 @@ class NTRIPClient(EventEmitter):
             try:
                 data = self.tcp_client_socket.recv(1024)
                 if data:
-                    #log_app.info(
+                    # log_app.info(
                     #     'NTRIP:[recv] rxdata {0}'.format(len(data)))
                     # print('NTRIP:[recv] rxdata {0}'.format(len(data)))
                     self.parser.receive(data)
@@ -149,7 +152,6 @@ class NTRIPClient(EventEmitter):
     def close(self):
         self.append_header_string = None
         self.is_close = True
-
 
     def handle_parsed_data(self, data):
         combined_data = []
