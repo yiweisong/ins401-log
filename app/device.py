@@ -11,6 +11,7 @@ from . import message
 from . import app_logger
 from .ntrip_client import NTRIPClient
 from .context import APP_CONTEXT
+from .debug import log_app
 
 PING_RESULT = {}
 
@@ -86,7 +87,7 @@ class INS401(object):
         # parse the data
         bytes_data = bytes(data)
 
-        is_nmea, str_gga = try_parse_nmea(bytes_data)
+        is_nmea, str_gga, with_nmea_error = try_parse_nmea(bytes_data)
         if is_nmea:
             self._append_to_app_context_packet_data('nmea')
 
@@ -96,6 +97,10 @@ class INS401(object):
             if self._ntrip_client and str_gga:
                 self._ntrip_client.send(str_gga)
             return
+
+        if with_nmea_error:
+            log_app.info('{0}: Fail while parse a nmea packet. Reason:{1}'.format(
+                self._device_info['sn'], with_nmea_error['message']))
 
         is_eth_100base_t1, packet_info = try_parse_ethernet_data(
             bytes_data)
@@ -350,10 +355,10 @@ def save_device_info(device_conf, local_network, data_log_info, device_info, app
         with open(file_path) as json_data:
             device_configuration = (list)(json.load(json_data))
 
-    #if len(result) > 0:
+    # if len(result) > 0:
     session_info = dict()
     session_info['time'] = time.strftime("%Y-%m-%d %H:%M:%S",
-                                            time.localtime())
+                                         time.localtime())
     session_info['device'] = device_info
     session_info['app'] = app_info
     session_info['interface'] = '100base-t1'
@@ -368,9 +373,9 @@ def save_device_info(device_conf, local_network, data_log_info, device_info, app
 
     with open(file_path, 'w') as outfile:
         json.dump(device_configuration,
-                    outfile,
-                    indent=4,
-                    ensure_ascii=False)
+                  outfile,
+                  indent=4,
+                  ensure_ascii=False)
 
 
 def create_device(device_conf, local_network):
@@ -458,6 +463,7 @@ def try_parse_nmea(data):
     is_nmea_packet = False
     str_nmea = None
     str_gga = None
+    with_error = None
 
     for bytedata in data:
         if bytedata == 0x24:
@@ -473,20 +479,22 @@ def try_parse_nmea(data):
                 if bytedata == 0x0A:
                     try:
                         str_nmea = ''.join(nmea_buffer)
-                        cksum, calc_cksum = nmea_checksum(
-                            str_nmea)
+                        cksum, calc_cksum = nmea_checksum(str_nmea)
                         if cksum == calc_cksum:
                             is_nmea_packet = True
                             if str_nmea.find("$GPGGA") != -1:
                                 str_gga = str_nmea
                                 break
+                        else:
+                            with_error = {'message':'CRC Error'}
                     except Exception as e:
-                        #print('NMEA fault:{0}'.format(e))
+                        # log_app.info('NMEA exception fault')
+                        with_error = {'message':'Parse with exception'}
                         pass
                 nmea_buffer = []
                 nmea_sync = 0
 
-    return is_nmea_packet, str_gga
+    return is_nmea_packet, str_gga, with_error
 
 
 def try_parse_ethernet_data(data):
