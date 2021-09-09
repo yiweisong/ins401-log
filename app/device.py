@@ -14,19 +14,28 @@ from .context import APP_CONTEXT
 from .debug import log_app
 
 PING_RESULT = {}
-
 GET_PARAMETER_RESULT = {}
 
+IMU_PKT = b'\x01\n'
+GNSS_PKT = b'\x02\n'
+INS_PKT = b'\x03\n'
+ODO_PKT = b'\x04\n'
+DIAG_PKT = b'\x05\n'
+RTCM_PKT = b'\x06\n'
 PING_PKT = b'\x01\xcc'
-
 GET_PARAMETER_PKT = b'\x02\xcc'
-
 SET_PARAMETER_PKT = b'\x03\xcc'
-
 SAVE_CONFIG_PKT = b'\x04\xcc'
 
-ETHERNET_OUTPUT_PACKETS = [b'\x01\n', b'\x02\n', PING_PKT,
-                           b'\x03\n', b'\x04\n', b'\x05\n', b'\x06\n']
+ETHERNET_OUTPUT_PACKETS = [
+    IMU_PKT,  # IMU
+    GNSS_PKT,  # GNSS
+    INS_PKT,  # INS
+    ODO_PKT,  # Odometer
+    DIAG_PKT,  # Diagnose
+    RTCM_PKT,  # RTCM Rover
+    PING_PKT  # Ping
+]
 
 
 class INS401(object):
@@ -486,10 +495,10 @@ def try_parse_nmea(data):
                                 str_gga = str_nmea
                                 break
                         else:
-                            with_error = {'message':'CRC Error'}
+                            with_error = {'message': 'CRC Error'}
                     except Exception as e:
                         # log_app.info('NMEA exception fault')
-                        with_error = {'message':'Parse with exception'}
+                        with_error = {'message': 'Parse with exception'}
                         pass
                 nmea_buffer = []
                 nmea_sync = 0
