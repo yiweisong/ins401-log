@@ -108,7 +108,7 @@ class INS401(object):
             return
 
         if with_nmea_error:
-            log_app.info('{0}: Fail while parse a nmea packet. Reason:{1}'.format(
+            log_app.error('{0}: Fail while parse a nmea packet. Reason:{1}'.format(
                 self._device_info['sn'], with_nmea_error['message']))
 
         is_eth_100base_t1, packet_info = try_parse_ethernet_data(
