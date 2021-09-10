@@ -87,10 +87,11 @@ class Bootstrap(object):
             time.sleep(1)
             check_count += 1
             try:
-                APP_CONTEXT.packet_data['sniffer_status'] = [
-                    device.device_info['sn'] for device in self._devices if device.sniffer_running]
+                # APP_CONTEXT.packet_data['sniffer_status'] = [
+                #     device.device_info['sn'] for device in self._devices if device.sniffer_running]
 
-                str_log_info = format_app_context_packet_data()
+                #str_log_info = format_app_context_packet_data()
+                str_log_info = self.format_log_info()
                 track_log_status(str_log_info)
 
                 # Send ping command to device per 60s to check if device is alive
@@ -99,6 +100,12 @@ class Bootstrap(object):
                         send_ping_command(device)
             except Exception as ex:
                 track_log_status(ex)
+
+    def format_log_info(self):
+        for device in self._devices:
+            device.update_received_packet_info()
+
+        return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
     @handle_application_exception
     def start(self):
@@ -126,10 +133,6 @@ class Bootstrap(object):
         threading.Thread(target=lambda: self._ntrip_client.run()).start()
         # thread to start debug track
         threading.Thread(target=lambda: self.start_debug_track()).start()
-
-        # if len(self._devices) == 0:
-        #     print('Application Exit')
-        #     return
 
         print('Application started')
 

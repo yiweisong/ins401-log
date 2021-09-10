@@ -37,6 +37,16 @@ ETHERNET_OUTPUT_PACKETS = [
     PING_PKT  # Ping
 ]
 
+ETHERNET_OUTPUT_PACKETS_MAPPING = {
+    IMU_PKT: 'IMU',
+    GNSS_PKT: 'GNSS',
+    INS_PKT: "INS",
+    ODO_PKT: "Odometer",
+    DIAG_PKT: "Diagnose",
+    RTCM_PKT: "RTCM Rover",
+    PING_PKT: "Ping"
+}
+
 
 class INS401(object):
     def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
@@ -48,12 +58,17 @@ class INS401(object):
         self._app_info = app_info
         self._async_sniffer = None
         self._enable_send_parsed_nmea = False
+        self._received_packet_info = {}
 
         self._data_log_path = data_log_info['data_log_path']
         self._user_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
         self._rtcm_rover_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
+        self._raw_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
+
+        self._do_init()
 
     @property
     def device_info(self):
@@ -79,6 +94,16 @@ class INS401(object):
     def enable_send_parsed_nmea(self, value: bool):
         self._enable_send_parsed_nmea = value
 
+    def _do_init(self):
+        for key in ETHERNET_OUTPUT_PACKETS:
+            if key == RTCM_PKT:
+                self._received_packet_info[key] = {
+                    'size': 0,
+                    'count': 0
+                }
+            else:
+                self._received_packet_info[key] = 0
+
     def recv(self, data):
         # send rtcm to device
         wrapped_packet_data = message.build(
@@ -93,15 +118,16 @@ class INS401(object):
         self._ntrip_client = ntrip_client
 
     def handle_receive_packet(self, data):
-        # parse the data
+        # try parse the data
         bytes_data = bytes(data)
+        # for debug
+        self._raw_logger.append(bytes_data)
 
         is_nmea, str_gga, with_nmea_error = try_parse_nmea(bytes_data)
         if is_nmea:
             self._append_to_app_context_packet_data('nmea')
 
             self._user_logger.append(bytes_data)
-            # self._user_logger.flush()
 
             if self._ntrip_client and str_gga:
                 self._ntrip_client.send(str_gga)
@@ -117,12 +143,18 @@ class INS401(object):
             self._append_to_app_context_packet_data(
                 str(packet_info['packet_type']))
 
-            if packet_info['packet_type'] == b'\x06\n':
+            byte_packet_type = packet_info['packet_type']
+            if byte_packet_type == RTCM_PKT:
                 self._rtcm_rover_logger.append(packet_info['payload'])
-                # self._rtcm_rover_logger.flush()
+
+                current_rtcm_log_info = self._received_packet_info[byte_packet_type]
+                self._received_packet_info[byte_packet_type] = {
+                    'size': current_rtcm_log_info['size'] + packet_info['payload_len'],
+                    'count': current_rtcm_log_info['count']+1
+                }
             else:
                 self._user_logger.append(packet_info['raw'])
-                # self._user_logger.flush()
+                self._received_packet_info[byte_packet_type] += 1
             return
 
     def _append_to_app_context_packet_data(self, str_key):
@@ -130,6 +162,23 @@ class INS401(object):
             APP_CONTEXT.packet_data[str_key] += 1
         else:
             APP_CONTEXT.packet_data[str_key] = 1
+
+    def update_received_packet_info(self):
+        file_path = os.path.join(app_logger.LogContext.session_path,
+                             self._data_log_path, 'received_packet_info.json')
+
+        received_packet_info={}
+
+        for key in self._received_packet_info.keys():
+            key_desc = ETHERNET_OUTPUT_PACKETS_MAPPING.get(key)
+            if key_desc:
+                received_packet_info[key_desc]=self._received_packet_info[key]
+
+        with open(file_path, 'w+') as outfile:
+            json.dump(received_packet_info,
+                    outfile,
+                    indent=4,
+                    ensure_ascii=False)
 
     def start(self):
         '''
@@ -324,12 +373,15 @@ def get_parameter(parameter_id, device_conf, local_network):
     )
 
     async_sniffer.start()
-    time.sleep(0.2)
+    time.sleep(0.1)
     sendp(command_line, iface=local_network["name"], verbose=0)
     time.sleep(0.5)
     async_sniffer.stop()
 
-    return GET_PARAMETER_RESULT[parameter_id]
+    if GET_PARAMETER_PKT.__contains__(parameter_id):
+        return GET_PARAMETER_RESULT[parameter_id]
+
+    return 0
 
 
 def get_parameters(device_conf, local_network):
@@ -407,7 +459,7 @@ def create_device(device_conf, local_network):
     )
 
     async_sniffer.start()
-    time.sleep(.2)
+    time.sleep(.1)
     sendp(command_line, iface=local_network["name"], verbose=0, count=1)
     time.sleep(.5)
     async_sniffer.stop()
@@ -474,6 +526,9 @@ def try_parse_nmea(data):
     str_gga = None
     with_error = None
 
+    if data[22]!=0x24:
+        return is_nmea_packet, str_gga, with_error
+
     for bytedata in data:
         if bytedata == 0x24:
             nmea_buffer = []
@@ -519,7 +574,9 @@ def try_parse_ethernet_data(data):
         payload = data[22:22+payload_len]
         packet_info = {
             'raw': raw,
+            'raw_len': packet_len,
             'payload': payload,
+            'payload_len': packet_len,
             'packet_type': ethernet_packet_type
         }
 
