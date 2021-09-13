@@ -526,7 +526,7 @@ def try_parse_nmea(data):
     str_gga = None
     with_error = None
 
-    if data[22]!=0x24:
+    if data[14]!=0x24:
         return is_nmea_packet, str_gga, with_error
 
     for bytedata in data:

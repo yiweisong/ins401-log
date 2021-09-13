@@ -52,3 +52,6 @@ if __name__ == '__main__':
     
     for device in devices:
         device.update_received_packet_info()
+
+    for device in devices:
+        device.update_received_packet_info()
