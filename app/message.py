@@ -35,24 +35,31 @@ def build(dst_mac, src_mac, pkt, payload=[]):
     Build final packet
     '''
     packet = []
-    packet.extend(pkt)
-    msg_len = len(payload)
+    msg_len=0
+    if pkt:
+        packet.extend(pkt)
+        msg_len = len(payload)
 
-    packet_len = struct.pack("<I", msg_len)
+        packet_len = struct.pack("<I", msg_len)
 
-    packet.extend(packet_len)
-    final_packet = packet + payload
+        packet.extend(packet_len)
+        packet.extend(payload)
+        #final_packet = packet.copy()
 
-    msg_len = len(COMMAND_START) + len(final_packet) + 2
-    payload_len = struct.pack('<H', len(COMMAND_START) + len(final_packet) + 2)
+        msg_len = len(COMMAND_START) + len(packet) + 2
+        payload_len = struct.pack('<H', len(COMMAND_START) + len(packet) + 2)
+    else:
+        packet.extend(payload)
+        msg_len = len(payload)
+        payload_len = struct.pack('<H', len(packet))
 
     whole_packet = []
-    header = conver_string_to_bytes(dst_mac) + conver_string_to_bytes(src_mac) + bytes(payload_len)
+    header = conver_string_to_bytes(dst_mac) + conver_string_to_bytes(src_mac) + payload_len
     whole_packet.extend(header)
 
     whole_packet.extend(COMMAND_START)
-    whole_packet.extend(final_packet)
-    whole_packet.extend(calc_crc(final_packet))
+    whole_packet.extend(packet)
+    whole_packet.extend(calc_crc(packet))
     if msg_len < PAYLOAD_MIN_LENGTH:
         fill_bytes = bytes(PAYLOAD_MIN_LENGTH-msg_len)
         whole_packet.extend(fill_bytes)
