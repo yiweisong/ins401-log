@@ -378,7 +378,7 @@ def get_parameter(parameter_id, device_conf, local_network):
     time.sleep(0.5)
     async_sniffer.stop()
 
-    if GET_PARAMETER_PKT.__contains__(parameter_id):
+    if GET_PARAMETER_RESULT.__contains__(parameter_id):
         return GET_PARAMETER_RESULT[parameter_id]
 
     return 0

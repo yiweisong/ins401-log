@@ -11,6 +11,7 @@ try:
     from app.device import (
         IMU_PKT, GNSS_PKT, INS_PKT, ODO_PKT, DIAG_PKT, RTCM_PKT
     )
+    from app.context import APP_CONTEXT
 except:
     sys.path.append(os.getcwd())
     from app.device import INS401
@@ -19,6 +20,7 @@ except:
     from app.device import (
         IMU_PKT, GNSS_PKT, INS_PKT, ODO_PKT, DIAG_PKT, RTCM_PKT
     )
+    from app.context import APP_CONTEXT
 
 app_conf = {}
 with open(os.path.join(os.getcwd(), 'config.json')) as json_data:
@@ -79,7 +81,7 @@ def create_mock_devices(name_prefix, device_mac_address):
     devices = []
     for mac_address in device_mac_address:
         sn = convert_mac_to_sn(mac_address)
-        print('{0}:{1}', sn, mac_address)
+        print('{0}:{1}'.format(sn, mac_address))
         devices.append(
             create_device(
                 '{0}-{1}'.format(name_prefix, sn),
@@ -138,6 +140,12 @@ def send_packet_to_devices(device_mac_addresses, packet):
     return packet_list
 
 
+def format_log_info(devices):
+    for device in devices:
+        device.update_received_packet_info()
+
+    return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
+
 if __name__ == '__main__':
     app_logger.new_session()
 
@@ -150,7 +158,7 @@ if __name__ == '__main__':
     # 2. create devices as receiver
     devices = create_mock_devices('mock-prefix', mock_mac_addresses)
     for device in devices:
-        device.start()
+       device.start()
 
     # 3. create data mocker as sender
     start_time = time.time()
@@ -165,6 +173,7 @@ if __name__ == '__main__':
             mock_mac_addresses, packet)
         output_packet_count += len(ethernet_packet_list)
         now_time = time.time()
-        time.sleep(0.001)
+        #time.sleep(0.001)
     print('End time:{0}'.format(now_time))
     print('Output packet count:{0}'.format(output_packet_count))
+    format_log_info(devices)
