@@ -36,6 +36,16 @@ LOCAL_MAC_ADDRESS = app_conf['local']['mac']
 
 RESOLVED_LOCAL_IFACE = resolve_iface(LOCAL_IFACE)
 
+frequency_policy = {
+    IMU_PKT: 1,
+    GNSS_PKT: 100,
+    INS_PKT: 1,
+    ODO_PKT: 10,
+    DIAG_PKT: 100,
+    RTCM_PKT: 1,
+    'nmea': 100
+}
+
 
 def create_device(name, device_mac_address, sn):
     current_time = time.localtime()
@@ -96,20 +106,10 @@ def create_mock_devices(name_prefix, device_mac_address):
     return devices
 
 
-def calc_packet_count(second, step=10):
+def calc_packet_count_per_second():
     packet_count = 0
 
-    frequency_policy = {
-        IMU_PKT: 1,
-        GNSS_PKT: 100,
-        INS_PKT: 1,
-        ODO_PKT: 10,
-        DIAG_PKT: 100,
-        RTCM_PKT: 1,
-        'nmea': 100
-    }
-
-    total_steps = int(second/step)
+    total_steps = 100
     for i in range(total_steps):
         for key in frequency_policy:
             if i % frequency_policy[key] == 0:
@@ -196,7 +196,7 @@ def format_log_info(devices):
     return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 
-def create_devices_process(mock_mac_addresses, status_flag):
+def create_devices_process(mock_mac_addresses, status_flag, duration):
     app_logger.new_session()
 
     devices = create_mock_devices('mock-prefix', mock_mac_addresses)
@@ -207,7 +207,7 @@ def create_devices_process(mock_mac_addresses, status_flag):
         # if status_flag.value == 1:
         #    print('Mock packet sent.')
         #    break
-        if devices[0]._received_packet_info[IMU_PKT] >= 1000:
+        if devices[0]._received_packet_info[IMU_PKT] >= duration*frequency_policy[IMU_PKT]:
             print('[Device] Receive end: {0}'.format(time.time()))
             break
         time.sleep(1)
@@ -215,12 +215,10 @@ def create_devices_process(mock_mac_addresses, status_flag):
     format_log_info(devices)
 
 
-def gen_output_process(mock_mac_addresses, status_flag):
-    duration = 10  # minute as unit
-
+def gen_output_process(mock_mac_addresses, status_flag, duration):
     mock_packet_generator = gen_mock_packet()
 
-    plan_gen_count = duration*calc_packet_count(1000)*len(mock_mac_addresses)
+    plan_gen_count = duration*calc_packet_count_per_second()*len(mock_mac_addresses)
     plan_send_packet_list = []
     print('[Data Mocker] Plan mock packet count:', plan_gen_count)
     print('[Data Mocker] Prepare start: {0}'.format(time.time()))
@@ -238,7 +236,6 @@ def gen_output_process(mock_mac_addresses, status_flag):
         sendp(batch_packet_list, iface=RESOLVED_LOCAL_IFACE, verbose=0)
         time.sleep(0.01)
     print('[Data Mocker] End send time: {0}'.format(time.time()))
-    #print('Output packet count:{0}'.format(output_packet_count))
 
     status_flag.value = 1
 
@@ -247,19 +244,20 @@ if __name__ == '__main__':
     # 1. create shared parameters
     output_packet_count = 0
     mock_len = 15
+    duration = 10
 
     mock_mac_addresses = gen_mock_mac_addresses(mock_len)
     status_flag = Value('i', 0)
     # 2. create devices as receiver
     devices_process = Process(
         target=create_devices_process,
-        args=(mock_mac_addresses, status_flag))
+        args=(mock_mac_addresses, status_flag, duration))
     devices_process.start()
 
     # 3. create data mocker as sender
     output_process = Process(
         target=gen_output_process,
-        args=(mock_mac_addresses, status_flag))
+        args=(mock_mac_addresses, status_flag, duration))
     output_process.start()
     output_process.join()
 

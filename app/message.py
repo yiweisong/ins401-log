@@ -1,8 +1,17 @@
 import struct
+import os
+#from ctypes import *
+
+#c_utils = CDLL(os.path.join(os.getcwd(), 'libs/utils.so'))
 
 COMMAND_START = [0x55, 0x55]
 
 PAYLOAD_MIN_LENGTH = 46
+
+
+# def calc_crc(payload):
+#     c_crc = c_utils.calc_crc(bytes(payload), len(payload))
+#     return struct.pack('<H', c_crc)
 
 
 def calc_crc(payload):
@@ -35,7 +44,7 @@ def build(dst_mac, src_mac, pkt, payload=[]):
     Build final packet
     '''
     packet = []
-    msg_len=0
+    msg_len = 0
     if pkt:
         packet.extend(pkt)
         msg_len = len(payload)
@@ -54,7 +63,8 @@ def build(dst_mac, src_mac, pkt, payload=[]):
         payload_len = struct.pack('<H', len(packet))
 
     whole_packet = []
-    header = conver_string_to_bytes(dst_mac) + conver_string_to_bytes(src_mac) + payload_len
+    header = conver_string_to_bytes(
+        dst_mac) + conver_string_to_bytes(src_mac) + payload_len
     whole_packet.extend(header)
 
     whole_packet.extend(COMMAND_START)
