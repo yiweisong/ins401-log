@@ -4,6 +4,10 @@ import os
 import time
 import json
 from scapy.all import (sendp, resolve_iface, Packet, PacketList)
+from multiprocessing import Process
+from multiprocessing.sharedctypes import (Value, Array)
+from ctypes import c_char_p, create_string_buffer
+
 try:
     from app.device import INS401
     from app import (message, app_logger)
@@ -103,16 +107,17 @@ def gen_mock_packet():
         'nmea': 100
     }
 
-    mock_nmea = '$GPGGA,051612.00,3129.6798000,N,12021.8016833,E,1,33,0.0,-15.409,M,6.809,M,0.0,*6E\r\n$GPZDA,051612.00,15,09,2021,00,00,*47'
+    mock_nmea_bytes = '$GPGGA,051612.00,3129.6798000,N,12021.8016833,E,1,33,0.0,-15.409,M,6.809,M,0.0,*6E\r\n$GPZDA,051612.00,15,09,2021,00,00,*47'.encode()
+    empty_bytes = bytes(200)
 
     while True:
         output_packet = {}
         for key in frequency_policy:
             if count % frequency_policy[key] == 0:
                 if key != 'nmea':
-                    output_packet[key] = bytes(200)
+                    output_packet[key] = empty_bytes
                 else:
-                    output_packet[key] = mock_nmea.encode()
+                    output_packet[key] = mock_nmea_bytes
 
         count += 1
 
@@ -136,7 +141,7 @@ def send_packet_to_devices(device_mac_addresses, packet):
             packet_raw = Packet(command_line)
             packet_list.append(packet_raw)
 
-    #sendp(packet_list, iface=RESOLVED_LOCAL_IFACE, verbose=0)
+    sendp(packet_list, iface=RESOLVED_LOCAL_IFACE, verbose=0)
     return packet_list
 
 
@@ -146,21 +151,22 @@ def format_log_info(devices):
 
     return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
-if __name__ == '__main__':
-    app_logger.new_session()
 
-    # 1. create shared parameters
-    output_packet_count = 0
-    mock_len = 10
-    duration = 1  # minute as unit
-    mock_mac_addresses = gen_mock_mac_addresses(mock_len)
-
-    # 2. create devices as receiver
+def create_devices_process(mock_mac_addresses, status_flag):
     devices = create_mock_devices('mock-prefix', mock_mac_addresses)
     for device in devices:
-       device.start()
+        device.start()
 
-    # 3. create data mocker as sender
+    while True:
+        if status_flag.value == 1:
+            break
+        time.sleep(0.01)
+
+    format_log_info(devices)
+
+
+def gen_output_process(mock_mac_addresses, status_flag):
+    output_packet_count = 0
     start_time = time.time()
     now_time = start_time
 
@@ -173,7 +179,32 @@ if __name__ == '__main__':
             mock_mac_addresses, packet)
         output_packet_count += len(ethernet_packet_list)
         now_time = time.time()
-        #time.sleep(0.001)
     print('End time:{0}'.format(now_time))
     print('Output packet count:{0}'.format(output_packet_count))
-    format_log_info(devices)
+
+    status_flag.value = 1
+
+
+if __name__ == '__main__':
+    app_logger.new_session()
+
+    # 1. create shared parameters
+    output_packet_count = 0
+    mock_len = 10
+    duration = 1  # minute as unit
+    mock_mac_addresses = gen_mock_mac_addresses(mock_len)
+    status_flag = Value('i', 0)
+    # 2. create devices as receiver
+    devices_process = Process(
+        target=create_devices_process,
+        args=(mock_mac_addresses, status_flag))
+    devices_process.start()
+
+    # 3. create data mocker as sender
+    output_process = Process(
+        target=gen_output_process,
+        args=(mock_mac_addresses, status_flag))
+    output_process.start()
+    output_process.join()
+
+    devices_process.join()
