@@ -7,6 +7,8 @@ import json
 import decimal
 from scapy.all import (AsyncSniffer, sendp)
 from scapy.packet import Packet
+from scapy.arch.libpcap import open_pcap
+from scapy.data import MTU
 from . import message
 from . import app_logger
 from .ntrip_client import NTRIPClient
@@ -165,20 +167,35 @@ class INS401(object):
 
     def update_received_packet_info(self):
         file_path = os.path.join(app_logger.LogContext.session_path,
-                             self._data_log_path, 'received_packet_info.json')
+                                 self._data_log_path, 'received_packet_info.json')
 
-        received_packet_info={}
+        received_packet_info = {}
 
         for key in self._received_packet_info.keys():
             key_desc = ETHERNET_OUTPUT_PACKETS_MAPPING.get(key)
             if key_desc:
-                received_packet_info[key_desc]=self._received_packet_info[key]
+                received_packet_info[key_desc] = self._received_packet_info[key]
 
         with open(file_path, 'w+') as outfile:
             json.dump(received_packet_info,
-                    outfile,
-                    indent=4,
-                    ensure_ascii=False)
+                      outfile,
+                      indent=4,
+                      ensure_ascii=False)
+
+    def raw_sniff(self, handler, filter):
+        try:
+            ins = open_pcap(self._iface, MTU, 1, 100, None)
+            ins.setfilter(filter)
+            while True:
+                if not self.continue_sniff:
+                    break
+                ts, pkt = ins.next()
+                if not pkt:
+                    continue
+
+                handler(pkt)
+        except KeyboardInterrupt:
+            pass
 
     def start(self):
         '''
@@ -186,17 +203,28 @@ class INS401(object):
         '''
         filter_exp = 'ether src host {0}'.format(self._device_mac)
 
-        async_sniffer = AsyncSniffer(
-            count=0,
-            store=0,
-            iface=self._iface,
-            prn=self.handle_receive_packet,
-            filter=filter_exp
-        )
+        # async_sniffer = AsyncSniffer(
+        #     count=0,
+        #     store=0,
+        #     iface=self._iface,
+        #     prn=self.handle_receive_packet,
+        #     filter=filter_exp
+        # )
 
-        async_sniffer.start()
+        # async_sniffer.start()
 
-        self._async_sniffer = async_sniffer
+        # self._async_sniffer = async_sniffer
+
+        self.thread = threading.Thread(target=self.raw_sniff, args=(
+            self.handle_receive_packet, filter_exp,))
+        self.thread.setDaemon(True)
+        self.continue_sniff = True
+        self.thread.start()
+
+    def stop(self):
+        if self.thread:
+            self.continue_sniff = False
+            self.thread.join()
 
 
 def convert_bytes_to_string(bytes_data, link=''):
@@ -526,7 +554,7 @@ def try_parse_nmea(data):
     str_gga = None
     with_error = None
 
-    if data[14]!=0x24:
+    if data[14] != 0x24:
         return is_nmea_packet, str_gga, with_error
 
     for bytedata in data:

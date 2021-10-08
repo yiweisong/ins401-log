@@ -207,8 +207,8 @@ def create_devices_process(mock_mac_addresses, status_flag, duration):
         # if status_flag.value == 1:
         #    print('Mock packet sent.')
         #    break
-        if devices[0]._received_packet_info[IMU_PKT] >= duration*frequency_policy[IMU_PKT]:
-            print('[Device] Receive end: {0}'.format(time.time()))
+        if devices[0]._received_packet_info[IMU_PKT] >= duration*frequency_policy[IMU_PKT]*100:
+            print('[Device] Receive end: {0} {1}'.format(time.time(),duration*frequency_policy[IMU_PKT]))
             break
         time.sleep(1)
 
