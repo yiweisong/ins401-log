@@ -298,7 +298,7 @@ def build_config_parameters_command_lines(device_conf, local_network):
     local_machine_mac = local_network['mac']
     local_machine_iface = local_network["name"]
     for parameter_config in device_conf['parameters']:
-        if not parameter_config.get('value'):
+        if not parameter_config.__contains__('value'):
             continue
 
         payload = []
@@ -403,7 +403,7 @@ def get_parameter(parameter_id, device_conf, local_network):
     async_sniffer.start()
     time.sleep(0.1)
     sendp(command_line, iface=local_network["name"], verbose=0)
-    time.sleep(0.5)
+    time.sleep(0.3)
     async_sniffer.stop()
 
     if GET_PARAMETER_RESULT.__contains__(parameter_id):
