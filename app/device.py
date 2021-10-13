@@ -619,3 +619,4 @@ def send_ping_command(device: INS401):
         payload=[])
 
     sendp(command_line, iface=device._iface, verbose=0, count=1)
+
