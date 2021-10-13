@@ -381,7 +381,7 @@ def get_parameter(parameter_id, device_conf, local_network):
     device_mac = device_conf['mac']
 
     filter_exp = 'ether src host {0} and ether[16:2] == 0x02cc'.format(
-        device_mac)
+        device_mac.lower())
 
     payload = []
     parameter_id_bytes = struct.pack('<I', parameter_id)

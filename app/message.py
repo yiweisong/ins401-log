@@ -35,8 +35,8 @@ def calc_crc(payload):
     return [crc_msb, crc_lsb]
 
 
-def conver_string_to_bytes(string_value, spliter=':'):
-    return bytes([int(x, 16) for x in string_value.split(spliter)])
+def conver_string_to_bytes(string_value: str, spliter=':'):
+    return bytes([int(x, 16) for x in string_value.lower().split(spliter)])
 
 
 def build(dst_mac, src_mac, pkt, payload=[]):
