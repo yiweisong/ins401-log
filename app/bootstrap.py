@@ -2,18 +2,20 @@ import time
 import json
 import os
 import threading
+from typing import List
 from . import app_logger
+from .debug import track_log_status
 from .ntrip_client import NTRIPClient
-from .device import (create_device, INS401)
-from .debug import log_debug
+from .device import (create_device, send_ping_command, INS401)
 from .context import APP_CONTEXT
-
+from .utils import list_files
+from .decorator import handle_application_exception
 
 def format_app_context_packet_data():
     return ', '.join(['{0}: {1}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 class Bootstrap(object):
-    _devices = None
+    _devices: List[INS401] = []
     _rtcm_logger = None
     _conf = None
 
@@ -31,14 +33,38 @@ class Bootstrap(object):
         app_conf = {}
         with open(os.path.join(os.getcwd(), 'config.json')) as json_data:
             app_conf = (json.load(json_data))
+
+        # load device config
+        device_config_paths = list_files(
+            os.path.join(os.getcwd(), 'configs', 'devices'))
+
+        for path in device_config_paths:
+            with open(path) as json_data:
+                device_conf = json.load(json_data)
+                if not device_conf.__contains__('mac'):
+                    continue
+
+                if not app_conf.__contains__('devices'):
+                    app_conf['devices'] = []
+
+                app_conf['devices'].append(device_conf)
+
+        if not app_conf.__contains__('devices'):
+            app_conf['devices'] = []
+
         return app_conf
 
     def _ping_devices(self):
         self._conf = self._load_conf()
+
         for item in self._conf["devices"]:
             device = create_device(item, self._conf["local"])
             if device:
                 self._devices.append(device)
+
+        if len(self._devices) == 0:
+            print('No device detected')
+            return
 
         for device in self._devices:
             device.start()
@@ -54,15 +80,32 @@ class Bootstrap(object):
 
     def start_debug_track(self):
         # track the log status per second
+        check_count = 0
         while True:
+            time.sleep(1)
+            check_count += 1
             try:
-                str_log_info = format_app_context_packet_data()
-                log_debug(str_log_info)
-                time.sleep(1)
-            except Exception as ex:
-                log_debug(ex)
-                return
+                # APP_CONTEXT.packet_data['sniffer_status'] = [
+                #     device.device_info['sn'] for device in self._devices if device.sniffer_running]
 
+                #str_log_info = format_app_context_packet_data()
+                str_log_info = self.format_log_info()
+                track_log_status(str_log_info)
+
+                # Send ping command to device per 60s to check if device is alive
+                if check_count % 60 == 0:
+                    for device in self._devices:
+                        send_ping_command(device)
+            except Exception as ex:
+                track_log_status(ex)
+
+    def format_log_info(self):
+        for device in self._devices:
+            device.update_received_packet_info()
+
+        return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
+
+    @handle_application_exception
     def start(self):
         ''' prepare
             1. ping device from configuration
@@ -73,8 +116,16 @@ class Bootstrap(object):
         self._ntrip_client = NTRIPClient(self._conf['ntrip'])
         self._ntrip_client.on('parsed', self._handle_parse_ntrip_data)
 
-        for device in self._devices:
-            device.set_ntrip_client(self._ntrip_client)
+        if len(self._devices) > 0:
+            sn = self._devices[0].device_info['sn']
+            pn = self._devices[0].device_info['pn']
+            self._ntrip_client.set_connect_headers({
+                'Ntrip-Sn': sn,
+                'Ntrip-Pn': pn
+            })
+
+            for device in self._devices:
+                device.set_ntrip_client(self._ntrip_client)
 
         # thread to start ntrip client
         threading.Thread(target=lambda: self._ntrip_client.run()).start()

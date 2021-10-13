@@ -1,6 +1,6 @@
 import struct
 from pyee import EventEmitter
-
+from .debug import log_app
 
 class ANALYSIS_STATUS:
     INIT = 0
@@ -177,6 +177,7 @@ class RTCMParser(EventEmitter):
                         if not crc_result:
                             self.current_analysis_status = ANALYSIS_STATUS.INIT
                             self.read_index = 0
+                            log_app.error('RTCM parser crc error')
                             continue
 
                         # crc valid

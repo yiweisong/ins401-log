@@ -1,3 +1,9 @@
 /.vscode
 /data
 __pycache__
+
+/configs/devices/*.json
+*.pyc
+
+*.so
+*.dll
