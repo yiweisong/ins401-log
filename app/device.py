@@ -227,6 +227,50 @@ class INS401(object):
             self.thread.join()
 
 
+def handle_collect_device_packet(data: Packet):
+    raw_data = bytes(data)
+    src = raw_data[6:12]
+    device_mac = convert_bytes_to_string(src, ':')
+
+    PING_RESULT[device_mac] = raw_data
+
+
+def collect_devices(machine_conf) -> dict:
+    PING_RESULT = {}
+    iface = machine_conf['name']
+    machine_mac = machine_conf['mac']
+    filter_exp = 'ether dst host {0} and ether[16:2] == 0x01cc'.format(
+        machine_mac)
+
+    command_line = message.build("ff:ff:ff:ff:ff:ff", machine_mac, PING_PKT)
+
+    async_sniffer = AsyncSniffer(
+        iface=iface,
+        prn=handle_collect_device_packet,
+        filter=filter_exp
+    )
+
+    async_sniffer.start()
+    time.sleep(.1)
+    sendp(command_line, iface=iface, verbose=0, count=1)
+    time.sleep(2)
+    async_sniffer.stop()
+
+
+def create_devices(conf):
+    collect_devices(conf['local'])
+    devices = []
+    devices_conf = []
+    for device_conf in conf['devices']:
+        device_mac = device_conf['mac']
+        if PING_RESULT.__contains__(device_mac):
+            device = create_device(device_conf, conf['local'])
+            devices.append(device)
+            devices_conf.append(device_conf)
+
+    return devices_conf, devices
+
+
 def convert_bytes_to_string(bytes_data, link=''):
     return link.join(['%02x' % b for b in bytes_data])
 
@@ -345,7 +389,7 @@ def config_parameters(device_conf, local_network):
         device_conf, local_network)
     for command_line in command_lines:
         sendp(command_line, iface=local_network["name"], verbose=0)
-        time.sleep(0.2)
+        time.sleep(0.1)
 
     command_line = build_save_config_command(device_conf, local_network)
     sendp(command_line, iface=local_network["name"], verbose=0)
@@ -471,29 +515,29 @@ def create_device(device_conf, local_network):
     # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
     #     device_mac)
     device_mac = device_conf['mac']
-    filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
-        device_mac)
+    # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
+    #     device_mac)
 
-    command_line = message.build(
-        dst_mac="ff:ff:ff:ff:ff:ff",  # device_mac,
-        src_mac=local_network['mac'],
-        pkt=PING_PKT,
-        payload=[])
+    # command_line = message.build(
+    #     dst_mac="ff:ff:ff:ff:ff:ff",  # device_mac,
+    #     src_mac=local_network['mac'],
+    #     pkt=PING_PKT,
+    #     payload=[])
 
-    async_sniffer = AsyncSniffer(
-        iface=local_network["name"],
-        prn=handle_receive_packet,
-        filter=filter_exp
-    )
+    # async_sniffer = AsyncSniffer(
+    #     iface=local_network["name"],
+    #     prn=handle_receive_packet,
+    #     filter=filter_exp
+    # )
 
-    async_sniffer.start()
-    time.sleep(.1)
-    sendp(command_line, iface=local_network["name"], verbose=0, count=1)
-    time.sleep(.5)
-    async_sniffer.stop()
+    # async_sniffer.start()
+    # time.sleep(.1)
+    # sendp(command_line, iface=local_network["name"], verbose=0, count=1)
+    # time.sleep(.5)
+    # async_sniffer.stop()
 
-    if not PING_RESULT.__contains__(device_mac):
-        return None
+    # if not PING_RESULT.__contains__(device_mac):
+    #     return None
 
     device_info, app_info = parse_ping_info(PING_RESULT[device_mac])
     print(device_info)
