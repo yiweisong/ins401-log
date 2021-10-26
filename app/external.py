@@ -1,5 +1,8 @@
 import struct
 import can
+import time
+import threading
+import random
 from typing import List
 from datetime import datetime
 from scapy.all import (sendp, Packet, PacketList)
@@ -9,6 +12,7 @@ from .typings import (EthOptions, CanOptions)
 from . import message
 from . import utils
 from . import can_parser
+
 
 def print_message(msg, *args):
     format_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -74,6 +78,35 @@ class SimpleListener(can.Listener):
     def on_error(self, exc):
         print(exc)
 
+class MockCanMessage:
+    arbitration_id = 0
+    data = []
+    timestamp = 0
+
+
+class MockReceiver(EventEmitter):
+    def __init__(self):
+        super(MockReceiver, self).__init__()
+        threading.Thread(target=self._receive).start()
+
+    def _receive(self):
+        frequency = 20/1000
+        while True:
+            message = self._mock_speed_message()
+            self.emit('data', message)
+            time.sleep(frequency)
+
+    def _mock_speed_message():
+        speed_data = []
+        for _ in range(8):
+            speed_data.append(random.randint(1, 255))
+
+        msg = MockCanMessage()
+        msg.arbitration_id = 0xAA
+        msg.timestamp = time.time()
+        msg.data = speed_data
+        return msg
+
 
 class OdometerSource:
     _eth_100base_t1_transfer = None
@@ -84,7 +117,7 @@ class OdometerSource:
     def __init__(self, conf, devices: List[INS401]):
         self._iface = conf['name']
         self._machine_mac = conf['mac']
-        self._devices_mac = [ item._device_mac for item in devices]
+        self._devices_mac = [item._device_mac for item in devices]
 
     def start(self):
         self._eth_100base_t1_transfer = Eth100BaseT1Transfer(
@@ -92,6 +125,7 @@ class OdometerSource:
 
         try:
             print_message('[Info] CAN log task started')
+            #MockReceiver()
             can_log_receiver = WindowsCANReceiver(CanOptions(0, 500000))
             can_log_receiver.on('data', self.receiver_handler)
         except Exception as ex:

@@ -259,14 +259,14 @@ def collect_devices(machine_conf) -> dict:
 
 def create_devices(conf):
     collect_devices(conf['local'])
-    devices = []
     devices_conf = []
+    devices = []
     for device_conf in conf['devices']:
         device_mac = device_conf['mac']
         if PING_RESULT.__contains__(device_mac):
+            devices_conf.append(device_conf)
             device = create_device(device_conf, conf['local'])
             devices.append(device)
-            devices_conf.append(device_conf)
 
     return devices_conf, devices
 

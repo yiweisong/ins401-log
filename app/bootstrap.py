@@ -7,7 +7,7 @@ from multiprocessing import Process
 from . import app_logger
 from .debug import track_log_status
 from .ntrip_client import NTRIPClient
-from .device import (collect_devices, create_devices,
+from .device import (create_devices,
                      send_ping_command, INS401)
 from .context import APP_CONTEXT
 from .utils import list_files
