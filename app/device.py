@@ -618,7 +618,7 @@ def try_parse_nmea(data):
                         cksum, calc_cksum = nmea_checksum(str_nmea)
                         if cksum == calc_cksum:
                             is_nmea_packet = True
-                            if str_nmea.find("$GPGGA") != -1:
+                            if str_nmea.find("$GPGGA") != -1 or str_nmea.find("$GNGGA") != -1:
                                 str_gga = str_nmea
                                 break
                         else:
