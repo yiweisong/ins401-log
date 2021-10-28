@@ -258,14 +258,24 @@ def collect_devices(machine_conf) -> dict:
 
 
 def create_devices(conf):
-    collect_devices(conf['local'])
+    # collect_devices(conf['local'])
+    # devices_conf = []
+    # devices = []
+    # for device_conf in conf['devices']:
+    #     device_mac = device_conf['mac']
+    #     if PING_RESULT.__contains__(device_mac):
+    #         devices_conf.append(device_conf)
+    #         device = create_device(device_conf, conf['local'])
+    #         devices.append(device)
+
+    # return devices_conf, devices
+
     devices_conf = []
     devices = []
     for device_conf in conf['devices']:
-        device_mac = device_conf['mac']
-        if PING_RESULT.__contains__(device_mac):
+        device = create_device(device_conf, conf['local'])
+        if device:
             devices_conf.append(device_conf)
-            device = create_device(device_conf, conf['local'])
             devices.append(device)
 
     return devices_conf, devices
@@ -515,29 +525,29 @@ def create_device(device_conf, local_network):
     # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
     #     device_mac)
     device_mac = device_conf['mac']
-    # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
-    #     device_mac)
+    filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
+        device_mac)
 
-    # command_line = message.build(
-    #     dst_mac="ff:ff:ff:ff:ff:ff",  # device_mac,
-    #     src_mac=local_network['mac'],
-    #     pkt=PING_PKT,
-    #     payload=[])
+    command_line = message.build(
+        dst_mac="ff:ff:ff:ff:ff:ff",  # device_mac,
+        src_mac=local_network['mac'],
+        pkt=PING_PKT,
+        payload=[])
 
-    # async_sniffer = AsyncSniffer(
-    #     iface=local_network["name"],
-    #     prn=handle_receive_packet,
-    #     filter=filter_exp
-    # )
+    async_sniffer = AsyncSniffer(
+        iface=local_network["name"],
+        prn=handle_receive_packet,
+        filter=filter_exp
+    )
 
-    # async_sniffer.start()
-    # time.sleep(.1)
-    # sendp(command_line, iface=local_network["name"], verbose=0, count=1)
-    # time.sleep(.5)
-    # async_sniffer.stop()
+    async_sniffer.start()
+    time.sleep(.1)
+    sendp(command_line, iface=local_network["name"], verbose=0, count=1)
+    time.sleep(.5)
+    async_sniffer.stop()
 
-    # if not PING_RESULT.__contains__(device_mac):
-    #     return None
+    if not PING_RESULT.__contains__(device_mac):
+        return None
 
     device_info, app_info = parse_ping_info(PING_RESULT[device_mac])
     print(device_info)
