@@ -67,8 +67,8 @@ class INS401(object):
             os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
         self._rtcm_rover_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
-        self._raw_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
+        #self._raw_logger = app_logger.create_logger(
+        #    os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
 
         self._do_init()
 
@@ -123,7 +123,7 @@ class INS401(object):
         # try parse the data
         bytes_data = bytes(data)
         # for debug
-        self._raw_logger.append(bytes_data)
+        # self._raw_logger.append(bytes_data)
 
         is_nmea, str_gga, with_nmea_error = try_parse_nmea(bytes_data)
         if is_nmea:
