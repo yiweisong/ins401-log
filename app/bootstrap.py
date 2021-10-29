@@ -3,7 +3,7 @@ import json
 import os
 import threading
 from typing import List
-from multiprocessing import Process
+#from multiprocessing import Process
 from . import app_logger
 from .debug import track_log_status
 from .ntrip_client import NTRIPClient
@@ -150,10 +150,10 @@ class Bootstrap(object):
         # thread to start debug track
         threading.Thread(target=lambda: self.start_debug_track()).start()
 
-        odometer_process = Process(
-            target=gen_odometer_process,
-            args=(self._conf['local'], self._devices, ))
-        odometer_process.start()
+        # odometer_process = Process(
+        #     target=gen_odometer_process,
+        #     args=(self._conf['local'], self._devices, ))
+        # odometer_process.start()
 
         print('Application started')
 
