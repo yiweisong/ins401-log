@@ -112,12 +112,11 @@ class OdometerSource:
     _eth_100base_t1_transfer = None
     _iface: str
     _machine_mac: str
-    _devices: List[INS401]
 
-    def __init__(self, conf, devices: List[INS401]):
+    def __init__(self, conf, devices_mac: list):
         self._iface = conf['name']
         self._machine_mac = conf['mac']
-        self._devices_mac = [item._device_mac for item in devices]
+        self._devices_mac = devices_mac
 
     def start(self):
         self._eth_100base_t1_transfer = Eth100BaseT1Transfer(

@@ -3,7 +3,7 @@ import json
 import os
 import threading
 from typing import List
-#from multiprocessing import Process
+from multiprocessing import Process
 from . import app_logger
 from .debug import track_log_status
 from .ntrip_client import NTRIPClient
@@ -17,8 +17,8 @@ from .external import OdometerSource
 def format_app_context_packet_data():
     return ', '.join(['{0}: {1}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
-def gen_odometer_process(conf, devices: List[INS401]):
-    odo_source = OdometerSource(conf, devices)
+def gen_odometer_process(conf, devices_mac: list):
+    odo_source = OdometerSource(conf, devices_mac)
     odo_source.start()
 
 
@@ -150,10 +150,11 @@ class Bootstrap(object):
         # thread to start debug track
         threading.Thread(target=lambda: self.start_debug_track()).start()
 
-        # odometer_process = Process(
-        #     target=gen_odometer_process,
-        #     args=(self._conf['local'], self._devices, ))
-        # odometer_process.start()
+        devices_mac = [item._device_mac for item in self._devices]
+        odometer_process = Process(
+            target=gen_odometer_process,
+            args=(self._conf['local'], devices_mac, ))
+        odometer_process.start()
 
         print('Application started')
 
