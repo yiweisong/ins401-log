@@ -3,7 +3,7 @@ import json
 import os
 import threading
 from typing import List
-#from multiprocessing import Process
+from multiprocessing import Process
 from . import app_logger
 from .debug import track_log_status
 from .ntrip_client import NTRIPClient
@@ -17,14 +17,13 @@ from .external import OdometerSource
 def format_app_context_packet_data():
     return ', '.join(['{0}: {1}'.format(key,APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
-def gen_odometer_process(conf, devices: List[INS401]):
-    odo_source = OdometerSource(conf, devices)
+def gen_odometer_process(conf, devices_mac: list):
+    odo_source = OdometerSource(conf, devices_mac)
     odo_source.start()
 
 
 class Bootstrap(object):
     _devices: List[INS401] = []
-    _rtcm_logger = None
     _conf = {}
 
     def __init__(self):
@@ -35,7 +34,6 @@ class Bootstrap(object):
 
         file_time = time.strftime(
             "%Y_%m_%d_%H_%M_%S", time.localtime())
-        self._rtcm_logger = app_logger.create_logger('rtcm_base_' + file_time)
 
     def _load_conf(self):
         app_conf = {}
@@ -72,10 +70,6 @@ class Bootstrap(object):
         devices_conf, self._devices = create_devices(self._conf)
 
         self._conf['devices'] = devices_conf
-        # for item in self._conf["devices"]:
-        #     device = create_device(item, self._conf["local"])
-        #     if device:
-        #         self._devices.append(device)
 
         if len(self._devices) == 0:
             print('No device detected')
@@ -84,31 +78,28 @@ class Bootstrap(object):
         for device in self._devices:
             device.start()
 
-    def _handle_parse_ntrip_data(self, data):
-        # log to rtcm_rover.log
-        if self._rtcm_logger:
-            self._rtcm_logger.append(bytes(data))
+    def _handle_parse_ntrip_data(self,device, data):
+        device.recv(data)
 
-        # send data to device list
+    def _start_ntrip_client(self):
+        if len(self._devices) == 0:
+            return
+
         for device in self._devices:
-            device.recv(data)
-
-    def _setup_ntrip_client(self):
-        self._ntrip_client = NTRIPClient(self._conf['ntrip'])
-        self._ntrip_client.on('parsed', self._handle_parse_ntrip_data)
-
-        if len(self._devices) > 0:
-            sn = self._devices[0].device_info['sn']
-            pn = self._devices[0].device_info['pn']
-            self._ntrip_client.set_connect_headers({
+            ntrip_client = NTRIPClient(self._conf['ntrip'])
+            ntrip_client.on('parsed', lambda data: device.recv(data))
+            sn = device.device_info['sn']
+            pn = device.device_info['pn']
+            ntrip_client.set_connect_headers({
                 'Ntrip-Sn': sn,
                 'Ntrip-Pn': pn
             })
 
-            for device in self._devices:
-                device.set_ntrip_client(self._ntrip_client)
+            device.set_ntrip_client(ntrip_client)
 
-    def start_debug_track(self):
+            threading.Thread(target=lambda: ntrip_client.run()).start()
+
+    def _start_debug_track(self):
         # track the log status per second
         check_count = 0
         while True:
@@ -143,17 +134,17 @@ class Bootstrap(object):
             3. start ntrip client
         '''
         self._ping_devices()
-        self._setup_ntrip_client()
 
-        # thread to start ntrip client
-        threading.Thread(target=lambda: self._ntrip_client.run()).start()
+        self._start_ntrip_client()
+
         # thread to start debug track
-        threading.Thread(target=lambda: self.start_debug_track()).start()
+        threading.Thread(target=lambda: self._start_debug_track()).start()
 
-        # odometer_process = Process(
-        #     target=gen_odometer_process,
-        #     args=(self._conf['local'], self._devices, ))
-        # odometer_process.start()
+        devices_mac = [item._device_mac for item in self._devices]
+        odometer_process = Process(
+            target=gen_odometer_process,
+            args=(self._conf['local'], devices_mac, ))
+        odometer_process.start()
 
         print('Application started')
 

@@ -67,6 +67,8 @@ class INS401(object):
             os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
         self._rtcm_rover_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
+        self._rtcm_base_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'rtcm_base_' + data_log_info['file_time']))
         #self._raw_logger = app_logger.create_logger(
         #    os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
 
@@ -107,6 +109,9 @@ class INS401(object):
                 self._received_packet_info[key] = 0
 
     def recv(self, data):
+        if self._rtcm_base_logger:
+            self._rtcm_base_logger.append(bytes(data))
+
         # send rtcm to device
         wrapped_packet_data = message.build(
             dst_mac=self._device_mac,
