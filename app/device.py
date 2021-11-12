@@ -5,9 +5,10 @@ import re
 import threading
 import json
 import decimal
-from scapy.all import (AsyncSniffer, sendp)
-from scapy.packet import Packet
+from scapy.all import (AsyncSniffer, sendp, NetworkInterface)
 from scapy.arch.libpcap import open_pcap
+from scapy.packet import Packet
+
 from scapy.data import MTU
 from . import message
 from . import app_logger
@@ -49,6 +50,8 @@ ETHERNET_OUTPUT_PACKETS_MAPPING = {
     PING_PKT: "Ping"
 }
 
+GLOBAL_CANCEL = False
+
 
 class INS401(object):
     def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
@@ -69,7 +72,7 @@ class INS401(object):
             os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
         self._rtcm_base_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_base_' + data_log_info['file_time']))
-        #self._raw_logger = app_logger.create_logger(
+        # self._raw_logger = app_logger.create_logger(
         #    os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
 
         self._do_init()
@@ -240,26 +243,47 @@ def handle_collect_device_packet(data: Packet):
     PING_RESULT[device_mac] = raw_data
 
 
-def collect_devices(machine_conf) -> dict:
+def raw_sniff(iface, handler, filter):
+    try:
+        ins = open_pcap(iface, MTU, 1, 100, None)
+        ins.setfilter(filter)
+        while not GLOBAL_CANCEL:
+            ts, pkt = ins.next()
+            if not pkt:
+                continue
+
+            handler(pkt)
+    except KeyboardInterrupt:
+        pass
+    print('end of raw sniff')
+
+
+def collect_devices(network_interface: NetworkInterface, timeout=5) -> dict:
     PING_RESULT = {}
-    iface = machine_conf['name']
-    machine_mac = machine_conf['mac']
+    GLOBAL_CANCEL = False
+    iface = network_interface.name
+    machine_mac = network_interface.mac
     filter_exp = 'ether dst host {0} and ether[16:2] == 0x01cc'.format(
         machine_mac)
 
-    command_line = message.build("ff:ff:ff:ff:ff:ff", machine_mac, PING_PKT)
+    thread = threading.Thread(target=raw_sniff, args=(
+        handle_collect_device_packet, filter_exp,))
+    thread.start()
 
-    async_sniffer = AsyncSniffer(
-        iface=iface,
-        prn=handle_collect_device_packet,
-        filter=filter_exp
-    )
-
-    async_sniffer.start()
     time.sleep(.1)
+    command_line = message.build("ff:ff:ff:ff:ff:ff", machine_mac, PING_PKT)
     sendp(command_line, iface=iface, verbose=0, count=1)
-    time.sleep(2)
-    async_sniffer.stop()
+
+    if timeout:
+        time.sleep(timeout)
+    GLOBAL_CANCEL = True
+
+    PING_INFO = []
+
+    for key in PING_RESULT:
+        PING_INFO.append({'mac': key, 'info': PING_RESULT[key]})
+
+    return PING_INFO
 
 
 def create_devices(conf):
@@ -593,6 +617,46 @@ def create_device(device_conf, local_network):
     return None
 
 
+def do_create_device(device_conf, ping_info, network_interface: NetworkInterface):
+    device_info, app_info = parse_ping_info(ping_info)
+
+    print(device_info)
+
+    if device_info:
+        device_mac = device_conf['mac']
+        current_time = time.localtime()
+        dir_time = time.strftime(
+            "%Y%m%d_%H%M%S", current_time)
+        file_time = time.strftime(
+            "%Y_%m_%d_%H_%M_%S", current_time)
+        data_log_path = '{0}_log_{1}'.format('ins401', dir_time)
+
+        data_log_info = {
+            'file_time': file_time,
+            'data_log_path': data_log_path
+        }
+
+        try:
+            config_parameters(device_conf, network_interface)
+        except Exception as ex:
+            print('Fail in config parameter. Device mac {0}, sn {1}'.format(
+                device_mac, device_info['sn']))
+            raise
+
+        try:
+            save_device_info(device_conf, network_interface,
+                             data_log_info, device_info, app_info)
+        except Exception as ex:
+            print('Fail in save device info. Device mac {0}, sn {1}'.format(
+                device_mac, device_info['sn']))
+            raise
+
+        iface = network_interface.name
+        machine_mac = network_interface.mac
+
+        return INS401(iface, machine_mac, device_mac, data_log_info, device_info, app_info)
+
+
 def nmea_checksum(data):
     if data is not None:
         data = data.replace("\r", "").replace("\n", "").replace("$", "")
@@ -678,4 +742,3 @@ def send_ping_command(device: INS401):
         payload=[])
 
     sendp(command_line, iface=device._iface, verbose=0, count=1)
-
