@@ -73,7 +73,7 @@ def build_ping_info(iface: NetworkInterface):
     step_next = False
     devices = []
     while not step_next:
-        #devices = collect_devices(iface)
+        devices = collect_devices(iface)
         c = Choice('We have find {0} device(s), need rescan?'.format(len(devices)),
                    ['No', 'Yes'],
                    icon_style=StringStyle(fore=Fore.blue),
