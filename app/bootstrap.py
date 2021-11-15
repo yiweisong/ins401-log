@@ -74,14 +74,17 @@ class Bootstrap(object):
             device = do_create_device(
                 device_conf, device['info'], network_interface)
             if device:
-                self._devices.append(device)
+                self._devices.append({
+                    'device': device,
+                    'conf': device_conf
+                })
 
         if len(self._devices) == 0:
             print('No device detected')
             return
 
-        for device in self._devices:
-            device.start()
+        for item in self._devices:
+            item['device'].start()
 
     def _handle_parse_ntrip_data(self, device):
         return lambda data: device.recv(data)
@@ -90,8 +93,12 @@ class Bootstrap(object):
         if len(self._devices) == 0:
             return
 
-        for device in self._devices:
-            ntrip_client = NTRIPClient(self._conf['ntrip'])
+        for item in self._devices:
+            device_conf = item['conf']
+            device = item['device']
+            ntrip_conf = device_conf['ntrip'] if device_conf.__contains__(
+                'ntrip') else self._conf['ntrip']
+            ntrip_client = NTRIPClient(ntrip_conf)
             ntrip_client.on('parsed', self._handle_parse_ntrip_data(device))
             sn = device.device_info['sn']
             pn = device.device_info['pn']
@@ -120,14 +127,14 @@ class Bootstrap(object):
 
                 # Send ping command to device per 60s to check if device is alive
                 if check_count % 60 == 0:
-                    for device in self._devices:
-                        send_ping_command(device)
+                    for item in self._devices:
+                        send_ping_command(item['device'])
             except Exception as ex:
                 track_log_status(ex)
 
     def format_log_info(self):
-        for device in self._devices:
-            device.update_received_packet_info()
+        for item in self._devices:
+            item['device'].update_received_packet_info()
 
         return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
@@ -163,7 +170,8 @@ class Bootstrap(object):
         threading.Thread(target=lambda: self._start_debug_track()).start()
 
         if with_odo_transfer:
-            devices_mac = [item._device_mac for item in self._devices]
+            devices_mac = [
+                item['device']._device_mac for item in self._devices]
             odometer_process = Process(
                 target=gen_odometer_process,
                 args=(self._conf['local'], devices_mac, ))

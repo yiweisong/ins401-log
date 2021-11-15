@@ -18,6 +18,9 @@ from .debug import log_app
 
 PING_RESULT = {}
 GET_PARAMETER_RESULT = {}
+MODULE_REFS = {
+    'GLOBAL_CANCEL': False
+}
 
 IMU_PKT = b'\x01\n'
 GNSS_PKT = b'\x02\n'
@@ -49,8 +52,6 @@ ETHERNET_OUTPUT_PACKETS_MAPPING = {
     RTCM_PKT: "RTCM Rover",
     PING_PKT: "Ping"
 }
-
-GLOBAL_CANCEL = False
 
 
 class INS401(object):
@@ -88,10 +89,6 @@ class INS401(object):
     @property
     def data_log_path(self):
         return self._data_log_path
-
-    @property
-    def sniffer_running(self):
-        return self._async_sniffer.running and self._async_sniffer.continue_sniff
 
     @property
     def enable_send_parsed_nmea(self):
@@ -247,7 +244,7 @@ def raw_sniff(iface, handler, filter):
     try:
         ins = open_pcap(iface, MTU, 1, 100, None)
         ins.setfilter(filter)
-        while not GLOBAL_CANCEL:
+        while not MODULE_REFS['GLOBAL_CANCEL']:
             ts, pkt = ins.next()
             if not pkt:
                 continue
@@ -260,7 +257,7 @@ def raw_sniff(iface, handler, filter):
 
 def collect_devices(network_interface: NetworkInterface, timeout=5) -> dict:
     PING_RESULT = {}
-    GLOBAL_CANCEL = False
+    MODULE_REFS['GLOBAL_CANCEL'] = False
     iface = network_interface.name
     machine_mac = network_interface.mac
     filter_exp = 'ether dst host {0} and ether[16:2] == 0x01cc'.format(
@@ -278,7 +275,7 @@ def collect_devices(network_interface: NetworkInterface, timeout=5) -> dict:
 
     if timeout:
         time.sleep(timeout)
-    GLOBAL_CANCEL = True
+    MODULE_REFS['GLOBAL_CANCEL'] = False
 
     PING_INFO = []
 
