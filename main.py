@@ -62,6 +62,7 @@ def select_ethernet_interface():
         try:
             with open(config_file_path, 'w') as outfile:
                 json.dump(app_conf, outfile, indent=4, ensure_ascii=False)
+            return network_interface
         except:
             print('Write configuration failed')
             return None
@@ -87,6 +88,7 @@ def build_ping_info(iface: NetworkInterface):
                 step_next = True
             else:
                 step_next = False
+                print('Rescaning...')
 
     return devices
 

@@ -267,7 +267,9 @@ def collect_devices(network_interface: NetworkInterface, timeout=5) -> dict:
         machine_mac)
 
     thread = threading.Thread(target=raw_sniff, args=(
-        handle_collect_device_packet, filter_exp,))
+        network_interface,
+        handle_collect_device_packet, 
+        filter_exp,))
     thread.start()
 
     time.sleep(.1)
