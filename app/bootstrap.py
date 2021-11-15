@@ -8,8 +8,7 @@ from scapy.interfaces import NetworkInterface
 from . import app_logger
 from .debug import track_log_status
 from .ntrip_client import NTRIPClient
-from .device import (create_devices,
-                     do_create_device,
+from .device import (do_create_device,
                      send_ping_command, INS401)
 from .context import APP_CONTEXT
 from .utils import list_files
@@ -63,24 +62,6 @@ class Bootstrap(object):
             app_conf['devices'] = []
 
         return app_conf
-
-    def _ping_devices(self):
-        ''' ping devices
-            1. ping all connected devices
-            2. compare with local config file to set parameters
-            3. start logging
-        '''
-        self._conf = self._load_conf()
-        devices_conf, self._devices = create_devices(self._conf)
-
-        self._conf['devices'] = devices_conf
-
-        if len(self._devices) == 0:
-            print('No device detected')
-            return
-
-        for device in self._devices:
-            device.start()
 
     def _create_devices(self, network_interface: NetworkInterface, devices: list):
         self._conf = self._load_conf()
@@ -157,7 +138,7 @@ class Bootstrap(object):
             2. collect the ping result, start log client
             3. start ntrip client
         '''
-        self._ping_devices()
+        # self._ping_devices()
 
         self._start_ntrip_client()
 
