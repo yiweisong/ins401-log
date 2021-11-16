@@ -19,7 +19,8 @@ from .debug import log_app
 PING_RESULT = {}
 GET_PARAMETER_RESULT = {}
 MODULE_REFS = {
-    'GLOBAL_CANCEL': False
+    'GLOBAL_CANCEL': False,
+    'PING_RESULT': {}
 }
 
 IMU_PKT = b'\x01\n'
@@ -237,7 +238,7 @@ def handle_collect_device_packet(data: Packet):
     src = raw_data[6:12]
     device_mac = convert_bytes_to_string(src, ':')
 
-    PING_RESULT[device_mac] = raw_data
+    MODULE_REFS['PING_RESULT'][device_mac] = raw_data
 
 
 def raw_sniff(iface, handler, filter):
@@ -252,11 +253,10 @@ def raw_sniff(iface, handler, filter):
             handler(pkt)
     except KeyboardInterrupt:
         pass
-    print('end of raw sniff')
 
 
 def collect_devices(network_interface: NetworkInterface, timeout=5) -> dict:
-    PING_RESULT = {}
+    MODULE_REFS['PING_RESULT'] = {}
     MODULE_REFS['GLOBAL_CANCEL'] = False
     iface = network_interface.name
     machine_mac = network_interface.mac
@@ -275,12 +275,12 @@ def collect_devices(network_interface: NetworkInterface, timeout=5) -> dict:
 
     if timeout:
         time.sleep(timeout)
-    MODULE_REFS['GLOBAL_CANCEL'] = False
+    MODULE_REFS['GLOBAL_CANCEL'] = True
 
     PING_INFO = []
 
-    for key in PING_RESULT:
-        PING_INFO.append({'mac': key, 'info': PING_RESULT[key]})
+    for key in MODULE_REFS['PING_RESULT']:
+        PING_INFO.append({'mac': key, 'info': MODULE_REFS['PING_RESULT'][key]})
 
     return PING_INFO
 
@@ -395,7 +395,7 @@ def config_parameters(device_conf, local_network: NetworkInterface):
         2. load current parameters (need?)
         3. compare current parameters with predefined (need?)
     '''
-    if not device_conf.__contains__('parameters') and \
+    if not device_conf.__contains__('parameters') or \
             not isinstance(device_conf['parameters'], list):
         return
 
@@ -436,6 +436,9 @@ def handle_receive_get_parameter_packet(device_conf, data: Packet):
 
 
 def get_parameter(parameter_id, device_conf, local_network: NetworkInterface):
+    if GET_PARAMETER_RESULT.__contains__(parameter_id):
+        del GET_PARAMETER_RESULT[parameter_id]
+
     device_mac = device_conf['mac']
 
     filter_exp = 'ether src host {0} and ether[16:2] == 0x02cc'.format(
@@ -467,17 +470,20 @@ def get_parameter(parameter_id, device_conf, local_network: NetworkInterface):
     if GET_PARAMETER_RESULT.__contains__(parameter_id):
         return GET_PARAMETER_RESULT[parameter_id]
 
-    return 0
+    return None
 
 
 def get_parameters(device_conf, local_network: NetworkInterface):
-    GET_PARAMETER_RESULT = {}
-
     all_parameters = []
+
+    if not device_conf.__contains__('parameters'):
+        return all_parameters
+
     for item in device_conf['parameters']:
         parameter_result = get_parameter(
             item['paramId'], device_conf, local_network)
-        all_parameters.append(parameter_result)
+        if parameter_result:
+            all_parameters.append(parameter_result)
 
     return all_parameters
 
@@ -528,7 +534,12 @@ def save_device_info(device_conf, local_network: NetworkInterface, data_log_info
 def do_create_device(device_conf, ping_info, network_interface: NetworkInterface):
     device_info, app_info = parse_ping_info(ping_info)
 
-    print(device_info)
+    print('Initializing device {0}, SN:{1}, Partnumber:{2}, Firmware:{3}, MAC Address:{4}',
+          device_info['name'],
+          device_info['sn'],
+          device_info['pn'],
+          device_info['firmware_version'],
+          device_conf['mac'])
 
     if device_info:
         device_mac = device_conf['mac']

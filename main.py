@@ -46,8 +46,8 @@ def select_ethernet_interface():
     ethernet_list = [conf.ifaces[item].name for item in conf.ifaces]
     c = Choice('Which ehternet interface you are using?',
                ethernet_list,
-               icon_style=StringStyle(fore=Fore.blue),
-               selected_style=StringStyle(fore=Fore.blue), default_index=0)
+               icon_style=StringStyle(fore=Fore.green),
+               selected_style=StringStyle(fore=Fore.green), default_index=0)
 
     choice = c.get_choice()
     if choice:
@@ -77,8 +77,8 @@ def build_ping_info(iface: NetworkInterface):
         devices = collect_devices(iface)
         c = Choice('We have find {0} device(s), need rescan?'.format(len(devices)),
                    ['No', 'Yes'],
-                   icon_style=StringStyle(fore=Fore.blue),
-                   selected_style=StringStyle(fore=Fore.blue),
+                   icon_style=StringStyle(fore=Fore.green),
+                   selected_style=StringStyle(fore=Fore.green),
                    default_index=0)
 
         choice = c.get_choice()
