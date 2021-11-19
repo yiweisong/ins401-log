@@ -7,7 +7,6 @@ from typing import List
 from datetime import datetime
 from scapy.all import (sendp, Packet, PacketList)
 from pyee import EventEmitter
-from .device import INS401
 from .typings import (EthOptions, CanOptions)
 from . import message
 from . import utils
@@ -96,7 +95,7 @@ class MockReceiver(EventEmitter):
             self.emit('data', message)
             time.sleep(frequency)
 
-    def _mock_speed_message():
+    def _mock_speed_message(self):
         speed_data = []
         for _ in range(8):
             speed_data.append(random.randint(1, 255))
