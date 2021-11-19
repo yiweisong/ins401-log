@@ -172,7 +172,7 @@ class Bootstrap(object):
         if with_odo_transfer:
             devices_mac = [
                 item['device']._device_mac for item in self._devices]
-            odometer_process = Process(
+            odometer_process = threading.Thread(
                 target=gen_odometer_process,
                 args=(self._conf['local'], devices_mac, ))
             odometer_process.start()
