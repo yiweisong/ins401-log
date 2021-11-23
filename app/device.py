@@ -541,6 +541,8 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
           device_info['firmware_version'],
           device_conf['mac'])
 
+    time.sleep(0.5)
+
     if device_info:
         device_mac = device_conf['mac']
         current_time = time.localtime()

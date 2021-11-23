@@ -18,6 +18,9 @@ class FileLogger:
 
     def append(self, data):
         self._internal_file_access.write(data)
+		
+    def flush(self):
+        self._internal_file_access.flush()
 
 
 def new_session():
@@ -31,7 +34,7 @@ def new_session():
 
     formatted_dir_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
     session_path = os.path.join(
-        data_folder_path, '{0}_log_{1}'.format('ins401', formatted_dir_time))
+        data_folder_path, 'session_{0}'.format(formatted_dir_time))
     os.mkdir(session_path)
 
     LogContext.root_path = root_path
