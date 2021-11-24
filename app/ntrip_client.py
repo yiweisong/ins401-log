@@ -119,19 +119,18 @@ class NTRIPClient(EventEmitter):
             try:
                 data = self.tcp_client_socket.recv(1024)
                 if data:
-                    # log_app.info(
-                    #     'NTRIP:[recv] rxdata {0}'.format(len(data)))
-                    # print('NTRIP:[recv] rxdata {0}'.format(len(data)))
                     self.parser.receive(data)
                 else:
                     print('NTRIP:[recv] no data error')
                     log_app.info('NTRIP:[recv] no data error')
+                    log_app.info('NTRIP:[recv] Append header string: {0}'.format(self.append_header_string))
                     self.tcp_client_socket.close()
                     return
 
             except Exception as e:
-                print('NTRIP:[recv] error occur {0}'.format(e))
-                log_app.error('NTRIP:[recv] error occur {0}'.format(e))
+                print('NTRIP:[recv] exception {0}'.format(e))
+                log_app.error('NTRIP:[recv] exception {0}'.format(e))
+                log_app.error('NTRIP:[recv] Append header string: {0}'.format(self.append_header_string))
                 self.tcp_client_socket.close()
                 return
 

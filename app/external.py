@@ -5,9 +5,8 @@ import threading
 import random
 from typing import List
 from datetime import datetime
-from scapy.all import (sendp, Packet, PacketList)
+from scapy.all import (sendp, Packet, PacketList, resolve_iface)
 from pyee import EventEmitter
-from .device import INS401
 from .typings import (EthOptions, CanOptions)
 from . import message
 from . import utils
@@ -78,6 +77,7 @@ class SimpleListener(can.Listener):
     def on_error(self, exc):
         print(exc)
 
+
 class MockCanMessage:
     arbitration_id = 0
     data = []
@@ -96,7 +96,7 @@ class MockReceiver(EventEmitter):
             self.emit('data', message)
             time.sleep(frequency)
 
-    def _mock_speed_message():
+    def _mock_speed_message(self):
         speed_data = []
         for _ in range(8):
             speed_data.append(random.randint(1, 255))
@@ -114,7 +114,7 @@ class OdometerSource:
     _machine_mac: str
 
     def __init__(self, conf, devices_mac: list):
-        self._iface = conf['name']
+        self._iface = resolve_iface(conf['name'])
         self._machine_mac = conf['mac']
         self._devices_mac = devices_mac
 
@@ -124,7 +124,7 @@ class OdometerSource:
 
         try:
             print_message('[Info] CAN log task started')
-            #MockReceiver()
+            # MockReceiver()
             can_log_receiver = WindowsCANReceiver(CanOptions(0, 500000))
             can_log_receiver.on('data', self.receiver_handler)
         except Exception as ex:

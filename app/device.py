@@ -5,9 +5,10 @@ import re
 import threading
 import json
 import decimal
-from scapy.all import (AsyncSniffer, sendp)
-from scapy.packet import Packet
+from scapy.all import (AsyncSniffer, sendp, NetworkInterface)
 from scapy.arch.libpcap import open_pcap
+from scapy.packet import Packet
+
 from scapy.data import MTU
 from . import message
 from . import app_logger
@@ -17,6 +18,10 @@ from .debug import log_app
 
 PING_RESULT = {}
 GET_PARAMETER_RESULT = {}
+MODULE_REFS = {
+    'GLOBAL_CANCEL': False,
+    'PING_RESULT': {}
+}
 
 IMU_PKT = b'\x01\n'
 GNSS_PKT = b'\x02\n'
@@ -69,7 +74,7 @@ class INS401(object):
             os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
         self._rtcm_base_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_base_' + data_log_info['file_time']))
-        #self._raw_logger = app_logger.create_logger(
+        # self._raw_logger = app_logger.create_logger(
         #    os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
 
         self._do_init()
@@ -85,10 +90,6 @@ class INS401(object):
     @property
     def data_log_path(self):
         return self._data_log_path
-
-    @property
-    def sniffer_running(self):
-        return self._async_sniffer.running and self._async_sniffer.continue_sniff
 
     @property
     def enable_send_parsed_nmea(self):
@@ -237,53 +238,51 @@ def handle_collect_device_packet(data: Packet):
     src = raw_data[6:12]
     device_mac = convert_bytes_to_string(src, ':')
 
-    PING_RESULT[device_mac] = raw_data
+    MODULE_REFS['PING_RESULT'][device_mac] = raw_data
 
 
-def collect_devices(machine_conf) -> dict:
-    PING_RESULT = {}
-    iface = machine_conf['name']
-    machine_mac = machine_conf['mac']
+def raw_sniff(iface, handler, filter):
+    try:
+        ins = open_pcap(iface, MTU, 1, 100, None)
+        ins.setfilter(filter)
+        while not MODULE_REFS['GLOBAL_CANCEL']:
+            ts, pkt = ins.next()
+            if not pkt:
+                continue
+
+            handler(pkt)
+    except KeyboardInterrupt:
+        pass
+
+
+def collect_devices(network_interface: NetworkInterface, timeout=5) -> dict:
+    MODULE_REFS['PING_RESULT'] = {}
+    MODULE_REFS['GLOBAL_CANCEL'] = False
+    iface = network_interface.name
+    machine_mac = network_interface.mac
     filter_exp = 'ether dst host {0} and ether[16:2] == 0x01cc'.format(
         machine_mac)
 
-    command_line = message.build("ff:ff:ff:ff:ff:ff", machine_mac, PING_PKT)
+    thread = threading.Thread(target=raw_sniff, args=(
+        network_interface,
+        handle_collect_device_packet,
+        filter_exp,))
+    thread.start()
 
-    async_sniffer = AsyncSniffer(
-        iface=iface,
-        prn=handle_collect_device_packet,
-        filter=filter_exp
-    )
-
-    async_sniffer.start()
     time.sleep(.1)
+    command_line = message.build("ff:ff:ff:ff:ff:ff", machine_mac, PING_PKT)
     sendp(command_line, iface=iface, verbose=0, count=1)
-    time.sleep(2)
-    async_sniffer.stop()
 
+    if timeout:
+        time.sleep(timeout)
+    MODULE_REFS['GLOBAL_CANCEL'] = True
 
-def create_devices(conf):
-    # collect_devices(conf['local'])
-    # devices_conf = []
-    # devices = []
-    # for device_conf in conf['devices']:
-    #     device_mac = device_conf['mac']
-    #     if PING_RESULT.__contains__(device_mac):
-    #         devices_conf.append(device_conf)
-    #         device = create_device(device_conf, conf['local'])
-    #         devices.append(device)
+    PING_INFO = []
 
-    # return devices_conf, devices
+    for key in MODULE_REFS['PING_RESULT']:
+        PING_INFO.append({'mac': key, 'info': MODULE_REFS['PING_RESULT'][key]})
 
-    devices_conf = []
-    devices = []
-    for device_conf in conf['devices']:
-        device = create_device(device_conf, conf['local'])
-        if device:
-            devices_conf.append(device_conf)
-            devices.append(device)
-
-    return devices_conf, devices
+    return PING_INFO
 
 
 def convert_bytes_to_string(bytes_data, link=''):
@@ -351,11 +350,11 @@ def handle_receive_packet(data: Packet):
     PING_RESULT[device_mac] = raw_data
 
 
-def build_config_parameters_command_lines(device_conf, local_network):
+def build_config_parameters_command_lines(device_conf, local_network: NetworkInterface):
     command_lines = []
     device_mac = device_conf['mac']
-    local_machine_mac = local_network['mac']
-    local_machine_iface = local_network["name"]
+    local_machine_mac = local_network.mac
+
     for parameter_config in device_conf['parameters']:
         if not parameter_config.__contains__('value'):
             continue
@@ -376,10 +375,10 @@ def build_config_parameters_command_lines(device_conf, local_network):
     return command_lines
 
 
-def build_save_config_command(device_conf, local_network):
+def build_save_config_command(device_conf, local_network: NetworkInterface):
     command_line = None
     device_mac = device_conf['mac']
-    local_machine_mac = local_network['mac']
+    local_machine_mac = local_network.mac
 
     command_line = message.build(
         dst_mac=device_mac,
@@ -390,24 +389,24 @@ def build_save_config_command(device_conf, local_network):
     return command_line
 
 
-def config_parameters(device_conf, local_network):
+def config_parameters(device_conf, local_network: NetworkInterface):
     '''
         1. set predefined parameters (done)
         2. load current parameters (need?)
         3. compare current parameters with predefined (need?)
     '''
-    if not device_conf.__contains__('parameters') and \
+    if not device_conf.__contains__('parameters') or \
             not isinstance(device_conf['parameters'], list):
         return
 
     command_lines = build_config_parameters_command_lines(
         device_conf, local_network)
     for command_line in command_lines:
-        sendp(command_line, iface=local_network["name"], verbose=0)
+        sendp(command_line, iface=local_network.name, verbose=0)
         time.sleep(0.1)
 
     command_line = build_save_config_command(device_conf, local_network)
-    sendp(command_line, iface=local_network["name"], verbose=0)
+    sendp(command_line, iface=local_network.name, verbose=0)
     time.sleep(0.2)
 
 
@@ -436,7 +435,10 @@ def handle_receive_get_parameter_packet(device_conf, data: Packet):
     }
 
 
-def get_parameter(parameter_id, device_conf, local_network):
+def get_parameter(parameter_id, device_conf, local_network: NetworkInterface):
+    if GET_PARAMETER_RESULT.__contains__(parameter_id):
+        del GET_PARAMETER_RESULT[parameter_id]
+
     device_mac = device_conf['mac']
 
     filter_exp = 'ether src host {0} and ether[16:2] == 0x02cc'.format(
@@ -448,12 +450,12 @@ def get_parameter(parameter_id, device_conf, local_network):
 
     command_line = message.build(
         dst_mac=device_mac,
-        src_mac=local_network['mac'],
+        src_mac=local_network.mac,
         pkt=GET_PARAMETER_PKT,
         payload=payload)
 
     async_sniffer = AsyncSniffer(
-        iface=local_network["name"],
+        iface=local_network,
         prn=lambda data: handle_receive_get_parameter_packet(
             device_conf, data),
         filter=filter_exp
@@ -461,29 +463,32 @@ def get_parameter(parameter_id, device_conf, local_network):
 
     async_sniffer.start()
     time.sleep(0.1)
-    sendp(command_line, iface=local_network["name"], verbose=0)
+    sendp(command_line, iface=local_network, verbose=0)
     time.sleep(0.3)
     async_sniffer.stop()
 
     if GET_PARAMETER_RESULT.__contains__(parameter_id):
         return GET_PARAMETER_RESULT[parameter_id]
 
-    return 0
+    return None
 
 
-def get_parameters(device_conf, local_network):
-    GET_PARAMETER_RESULT = {}
-
+def get_parameters(device_conf, local_network: NetworkInterface):
     all_parameters = []
+
+    if not device_conf.__contains__('parameters'):
+        return all_parameters
+
     for item in device_conf['parameters']:
         parameter_result = get_parameter(
             item['paramId'], device_conf, local_network)
-        all_parameters.append(parameter_result)
+        if parameter_result:
+            all_parameters.append(parameter_result)
 
     return all_parameters
 
 
-def save_device_info(device_conf, local_network, data_log_info, device_info, app_info):
+def save_device_info(device_conf, local_network: NetworkInterface, data_log_info, device_info, app_info):
     ''' Save device configuration
         File name: configuration.json
     '''
@@ -526,38 +531,20 @@ def save_device_info(device_conf, local_network, data_log_info, device_info, app
                   ensure_ascii=False)
 
 
-def create_device(device_conf, local_network):
-    # filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
-    #     device_mac)
-    device_mac = device_conf['mac']
-    filter_exp = 'ether src host {0} and ether[16:2] == 0x01cc'.format(
-        device_mac)
+def do_create_device(device_conf, ping_info, network_interface: NetworkInterface):
+    device_info, app_info = parse_ping_info(ping_info)
 
-    command_line = message.build(
-        dst_mac="ff:ff:ff:ff:ff:ff",  # device_mac,
-        src_mac=local_network['mac'],
-        pkt=PING_PKT,
-        payload=[])
+    print('Initializing device {0}, SN:{1}, Partnumber:{2}, Firmware:{3}, MAC Address:{4}',
+          device_info['name'],
+          device_info['sn'],
+          device_info['pn'],
+          device_info['firmware_version'],
+          device_conf['mac'])
 
-    async_sniffer = AsyncSniffer(
-        iface=local_network["name"],
-        prn=handle_receive_packet,
-        filter=filter_exp
-    )
-
-    async_sniffer.start()
-    time.sleep(.1)
-    sendp(command_line, iface=local_network["name"], verbose=0, count=1)
-    time.sleep(.5)
-    async_sniffer.stop()
-
-    if not PING_RESULT.__contains__(device_mac):
-        return None
-
-    device_info, app_info = parse_ping_info(PING_RESULT[device_mac])
-    print(device_info)
+    time.sleep(0.5)
 
     if device_info:
+        device_mac = device_conf['mac']
         current_time = time.localtime()
         dir_time = time.strftime(
             "%Y%m%d_%H%M%S", current_time)
@@ -571,26 +558,24 @@ def create_device(device_conf, local_network):
         }
 
         try:
-            config_parameters(device_conf, local_network)
+            config_parameters(device_conf, network_interface)
         except Exception as ex:
             print('Fail in config parameter. Device mac {0}, sn {1}'.format(
                 device_mac, device_info['sn']))
             raise
 
         try:
-            save_device_info(device_conf, local_network,
+            save_device_info(device_conf, network_interface,
                              data_log_info, device_info, app_info)
         except Exception as ex:
             print('Fail in save device info. Device mac {0}, sn {1}'.format(
                 device_mac, device_info['sn']))
             raise
 
-        iface = local_network["name"]
-        machine_mac = local_network["mac"]
+        iface = network_interface.name
+        machine_mac = network_interface.mac
 
         return INS401(iface, machine_mac, device_mac, data_log_info, device_info, app_info)
-
-    return None
 
 
 def nmea_checksum(data):
@@ -678,4 +663,3 @@ def send_ping_command(device: INS401):
         payload=[])
 
     sendp(command_line, iface=device._iface, verbose=0, count=1)
-

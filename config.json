@@ -1,13 +1,13 @@
 {
-  "local": {
-    "name": "Intel(R) Ethernet Connection (10) I219-V",
-    "mac": "74:78:27:78:48:A4"
-  },
-  "ntrip":{
-    "ip": "58.215.20.43",
-    "port": 2201,
-    "mountPoint": "WX02",
-    "username": "ymj_123",
-    "password": "SIGEMZOOMQ1JDJI3"
-  }
+    "ntrip": {
+        "ip": "58.215.20.43",
+        "port": 2201,
+        "mountPoint": "WX02",
+        "username": "ymj_123",
+        "password": "SIGEMZOOMQ1JDJI3"
+    },
+    "local": {
+        "name": "en0",
+        "mac": "88:e9:fe:52:68:56"
+    }
 }
