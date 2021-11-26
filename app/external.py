@@ -153,6 +153,5 @@ class OdometerSource:
         # can_speed_log.append('{0}, {1}'.format(data.timestamp, speed))
 
     def receiver_handler(self, data):
-        # parse message id 0xAA(170), it stands for wheel speed
-        if data.arbitration_id == 0xAA:
+        if self._can_parser.need_handle_speed_data(data.arbitration_id):
             self.handle_wheel_speed_data(data)

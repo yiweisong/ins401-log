@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from .debug import log_app
 
+
 class AbstractParser:
     __metaclass__ = ABCMeta
 
@@ -10,11 +11,19 @@ class AbstractParser:
         parse message
         '''
 
+    def need_handle_speed_data(self, arbitration_id) -> bool:
+        '''
+        check if the arbitration_id contains speed info
+        '''
+
 
 class DefaultParser(AbstractParser):
     def __init__(self):
         super(DefaultParser, self).__init__()
         pass
+
+    def need_handle_speed_data(arbitration_id):
+        return arbitration_id == 0xAA
 
     def parse(self, message_type, data):
         parse_result = None
@@ -58,17 +67,20 @@ class Customer1Parser:
     def __init__(self):
         super(Customer1Parser, self).__init__()
 
+    def need_handle_speed_data(arbitration_id):
+        return arbitration_id == 0xB6
+
     def parse(self, message_type, data):
         parse_result = None
         if message_type == 'WHEEL_SPEED':
-            parse_result = parse_wheel_speed(data)
+            parse_result = self.parse_wheel_speed(data)
 
         if not parse_result:
             return True, None
 
         return False, parse_result
 
-    def parse_wheel_speed(data):
+    def parse_wheel_speed(self, data):
         '''
         Customer 1 parser
 
@@ -85,7 +97,6 @@ class Customer1Parser:
         WHEEL_SPEED_RR: msb 24:38 bit
 
         '''
-        scale = 0.01
         speed_rl = (data[1] + ((data[2] & 0x7F) << 8)) * 0.01
         speed_rl = 0 if speed_rl > 327.65 else speed_rl
 
@@ -101,9 +112,10 @@ class CanParserFactory:
             if type == '' or type is None:
                 instance = DefaultParser()
             else:
-                instance = eval(type)
+                instance = eval(type)()
         except Exception as ex:
-            log_app.error('Failed to initalize specified can parser:{0}, use default', format(type))
+            log_app.error(
+                'Failed to initalize specified can parser:{0}, use default', format(type))
             instance = DefaultParser()
 
         return instance

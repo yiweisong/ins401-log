@@ -121,10 +121,6 @@ class Bootstrap(object):
             time.sleep(1)
             check_count += 1
             try:
-                # APP_CONTEXT.packet_data['sniffer_status'] = [
-                #     device.device_info['sn'] for device in self._devices if device.sniffer_running]
-
-                #str_log_info = format_app_context_packet_data()
                 str_log_info = self.format_log_info()
                 track_log_status(str_log_info)
 
