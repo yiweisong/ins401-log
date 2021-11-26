@@ -10,7 +10,7 @@ from pyee import EventEmitter
 from .typings import (EthOptions, CanOptions)
 from . import message
 from . import utils
-from . import can_parser
+from .can_parser import CanParserFactory
 
 
 def print_message(msg, *args):
@@ -113,10 +113,11 @@ class OdometerSource:
     _iface: str
     _machine_mac: str
 
-    def __init__(self, conf, devices_mac: list):
+    def __init__(self, conf, devices_mac: list, can_parser_type=None):
         self._iface = resolve_iface(conf['name'])
         self._machine_mac = conf['mac']
         self._devices_mac = devices_mac
+        self._can_parser = CanParserFactory.create(can_parser_type)
 
     def start(self):
         self._eth_100base_t1_transfer = Eth100BaseT1Transfer(
@@ -134,7 +135,7 @@ class OdometerSource:
     @utils.throttle(seconds=0.05)
     def handle_wheel_speed_data(self, data):
         # parse wheel speed
-        parse_error, parse_result = can_parser.parse('WHEEL_SPEED', data.data)
+        parse_error, parse_result = self._can_parser.parse('WHEEL_SPEED', data.data)
         if parse_error:
             return
 
