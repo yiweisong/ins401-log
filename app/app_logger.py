@@ -13,12 +13,12 @@ class LogContext:
 class FileLogger:
     _internal_file_access: FileIO
 
-    def __init__(self, path):
-        self._internal_file_access = open(path, 'wb')
+    def __init__(self, path, mode):
+        self._internal_file_access = open(file=path, mode=mode)
 
     def append(self, data):
         self._internal_file_access.write(data)
-		
+
     def flush(self):
         self._internal_file_access.flush()
 
@@ -33,8 +33,8 @@ def new_session():
         os.makedirs(data_folder_path)
 
     formatted_dir_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-    session_path = os.path.join(
-        data_folder_path, 'session_{0}'.format(formatted_dir_time))
+    session_path = os.path.join(data_folder_path,
+                                'session_{0}'.format(formatted_dir_time))
     os.mkdir(session_path)
 
     LogContext.root_path = root_path
@@ -43,11 +43,11 @@ def new_session():
     LogContext.initalized = True
 
 
-def create_logger(file_path) -> FileLogger:
+def create_logger(file_path, mode='wb') -> FileLogger:
     file_path = '{0}.bin'.format(file_path)
     abs_file_path = os.path.join(LogContext.session_path, file_path)
     dir_name = os.path.dirname(abs_file_path)
     if not os.path.isdir(dir_name):
         os.makedirs(dir_name, exist_ok=True)
 
-    return FileLogger(abs_file_path)
+    return FileLogger(abs_file_path, mode)
