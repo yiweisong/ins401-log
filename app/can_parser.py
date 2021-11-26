@@ -22,7 +22,7 @@ class DefaultParser(AbstractParser):
         super(DefaultParser, self).__init__()
         pass
 
-    def need_handle_speed_data(arbitration_id):
+    def need_handle_speed_data(self, arbitration_id):
         return arbitration_id == 0xAA
 
     def parse(self, message_type, data):
@@ -67,7 +67,7 @@ class Customer1Parser:
     def __init__(self):
         super(Customer1Parser, self).__init__()
 
-    def need_handle_speed_data(arbitration_id):
+    def need_handle_speed_data(self, arbitration_id):
         return arbitration_id == 0xB6
 
     def parse(self, message_type, data):

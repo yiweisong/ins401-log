@@ -6,5 +6,5 @@
         "username": "ymj_123",
         "password": "SIGEMZOOMQ1JDJI3"
     },
-    "can_parser": "Customer1Parser"
+    "can_parser": "DefaultParser"
 }
