@@ -163,7 +163,7 @@ class Bootstrap(object):
             time.sleep(10)
 
     @handle_application_exception
-    def start_v2(self, network_interface: NetworkInterface, devices: list, with_odo_transfer=True):
+    def start_v2(self, network_interface: NetworkInterface, devices: list, with_odo_transfer=False):
         self._create_devices(network_interface, devices)
         self._start_ntrip_client()
         threading.Thread(target=lambda: self._start_debug_track()).start()

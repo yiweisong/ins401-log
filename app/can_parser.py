@@ -63,7 +63,7 @@ class DefaultParser(AbstractParser):
         return (speed_fr, speed_fl, speed_rr, speed_rl)
 
 
-class Customer1Parser:
+class Customer1Parser(AbstractParser):
     def __init__(self):
         super(Customer1Parser, self).__init__()
 
