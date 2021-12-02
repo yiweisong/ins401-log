@@ -6,8 +6,5 @@
         "username": "ymj_123",
         "password": "SIGEMZOOMQ1JDJI3"
     },
-    "local": {
-        "name": "en0",
-        "mac": "88:e9:fe:52:68:56"
-    }
+    "can_parser": "DefaultParser"
 }

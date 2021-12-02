@@ -20,8 +20,8 @@ def format_app_context_packet_data():
     return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 
-def gen_odometer_process(conf, devices_mac: list):
-    odo_source = OdometerSource(conf, devices_mac)
+def gen_odometer_process(conf, devices_mac: list, can_parser_type):
+    odo_source = OdometerSource(conf, devices_mac, can_parser_type)
     odo_source.start()
 
 
@@ -60,6 +60,9 @@ class Bootstrap(object):
 
         if not app_conf.__contains__('devices'):
             app_conf['devices'] = []
+
+        if not app_conf.__contains__('can_parser'):
+            app_conf['can_parser'] = 'DefaultParser'
 
         return app_conf
 
@@ -118,10 +121,6 @@ class Bootstrap(object):
             time.sleep(1)
             check_count += 1
             try:
-                # APP_CONTEXT.packet_data['sniffer_status'] = [
-                #     device.device_info['sn'] for device in self._devices if device.sniffer_running]
-
-                #str_log_info = format_app_context_packet_data()
                 str_log_info = self.format_log_info()
                 track_log_status(str_log_info)
 
@@ -164,7 +163,7 @@ class Bootstrap(object):
             time.sleep(10)
 
     @handle_application_exception
-    def start_v2(self, network_interface: NetworkInterface, devices: list, with_odo_transfer=True):
+    def start_v2(self, network_interface: NetworkInterface, devices: list, with_odo_transfer=False):
         self._create_devices(network_interface, devices)
         self._start_ntrip_client()
         threading.Thread(target=lambda: self._start_debug_track()).start()
@@ -174,7 +173,7 @@ class Bootstrap(object):
                 item['device']._device_mac for item in self._devices]
             odometer_process = threading.Thread(
                 target=gen_odometer_process,
-                args=(self._conf['local'], devices_mac, ))
+                args=(self._conf['local'], devices_mac, self._conf['can_parser']))
             odometer_process.start()
 
         print('Application started')

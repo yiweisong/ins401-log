@@ -10,7 +10,8 @@ from pyee import EventEmitter
 from .typings import (EthOptions, CanOptions)
 from . import message
 from . import utils
-from . import can_parser
+from . import app_logger
+from .can_parser import CanParserFactory
 
 
 def print_message(msg, *args):
@@ -113,14 +114,16 @@ class OdometerSource:
     _iface: str
     _machine_mac: str
 
-    def __init__(self, conf, devices_mac: list):
+    def __init__(self, conf, devices_mac: list, can_parser_type=None):
         self._iface = resolve_iface(conf['name'])
         self._machine_mac = conf['mac']
         self._devices_mac = devices_mac
+        self._can_parser = CanParserFactory.create(can_parser_type)
 
     def start(self):
         self._eth_100base_t1_transfer = Eth100BaseT1Transfer(
             EthOptions(self._iface, self._machine_mac, self._devices_mac))
+        self._can_speed_log = app_logger.create_logger('can_speed', 'w+')
 
         try:
             print_message('[Info] CAN log task started')
@@ -134,7 +137,8 @@ class OdometerSource:
     @utils.throttle(seconds=0.05)
     def handle_wheel_speed_data(self, data):
         # parse wheel speed
-        parse_error, parse_result = can_parser.parse('WHEEL_SPEED', data.data)
+        parse_error, parse_result = self._can_parser.parse(
+            'WHEEL_SPEED', data.data)
         if parse_error:
             return
 
@@ -149,9 +153,8 @@ class OdometerSource:
             self._eth_100base_t1_transfer.send_batch(commands)
 
         # log timestamp
-        # can_speed_log.append('{0}, {1}'.format(data.timestamp, speed))
+        self._can_speed_log.append('{0}, {1}\n'.format(data.timestamp, speed))
 
     def receiver_handler(self, data):
-        # parse message id 0xAA(170), it stands for wheel speed
-        if data.arbitration_id == 0xAA:
+        if self._can_parser.need_handle_speed_data(data.arbitration_id):
             self.handle_wheel_speed_data(data)

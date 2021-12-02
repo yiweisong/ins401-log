@@ -7,6 +7,12 @@ def convert_mac_to_sn(mac_address: str):
     return struct.unpack('<I', bytes(integer_sn_parts))[0]
 
 
+def convert_sn_to_mac(sn: int):
+    suffix = '00:28'
+    sn_mac = ':'.join(['%x' % x for x in struct.pack('<I', sn)])
+    return '{0}:{1}'.format(sn_mac, suffix)
+
+
 if __name__ == '__main__':
     mac_addresses = [
         'd2:e6:e0:81:00:28',

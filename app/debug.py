@@ -33,5 +33,8 @@ app_file_output.setFormatter(logging.Formatter(LOG_FORMAT))
 log_app.addHandler(app_file_output)
 log_app.setLevel(logging.INFO)
 
+
 def track_log_status(message, *args):
+    if not message or len(message) == 0:
+        return
     log_debug.info(message, *args)
