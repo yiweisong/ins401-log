@@ -40,12 +40,14 @@ def select_ethernet_interface():
         print('Read configuration failed')
         return None
 
-    ethernet_list = [conf.ifaces[item].name for item in conf.ifaces]
+    description_list = [conf.ifaces[item].description for item in conf.ifaces]
 
     if app_conf.__contains__('local'):
         local_mac = app_conf['local']['name']
-        if local_mac in ethernet_list:
+        if local_mac in description_list:
             return resolve_iface(local_mac)
+
+    ethernet_list = [conf.ifaces[item].name for item in conf.ifaces]
 
     c = Choice('Which ehternet interface you are using?',
                ethernet_list,
