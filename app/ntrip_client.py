@@ -54,6 +54,7 @@ class NTRIPClient(EventEmitter):
                 print('NTRIP:[request] fail')
                 log_app.info('NTRIP:[request] fail')
                 self.tcp_client_socket.close()
+                self.is_connected = 0
 
     def set_connect_headers(self, headers: dict):
         self.append_header_string = ''
@@ -125,6 +126,7 @@ class NTRIPClient(EventEmitter):
                     log_app.info('NTRIP:[recv] no data error')
                     log_app.info('NTRIP:[recv] Append header string: {0}'.format(self.append_header_string))
                     self.tcp_client_socket.close()
+                    self.is_connected = 0
                     return
 
             except Exception as e:
@@ -132,6 +134,7 @@ class NTRIPClient(EventEmitter):
                 log_app.error('NTRIP:[recv] exception {0}'.format(e))
                 log_app.error('NTRIP:[recv] Append header string: {0}'.format(self.append_header_string))
                 self.tcp_client_socket.close()
+                self.is_connected = 0
                 return
 
     def recvResponse(self):
