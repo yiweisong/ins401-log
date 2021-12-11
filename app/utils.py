@@ -29,3 +29,10 @@ def throttle(seconds=0, minutes=0, hours=0):
                 return fn(*args, **kwargs)
         return wrapper
     return throttle_decorator
+
+def extend_default(original:dict, default_values:dict):
+    for key in default_values:  
+        if not original.__contains__(key):
+            original[key] = default_values[key]
+    
+    return original

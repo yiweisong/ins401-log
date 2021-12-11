@@ -11,7 +11,7 @@ from .ntrip_client import NTRIPClient
 from .device import (do_create_device,
                      send_ping_command, INS401)
 from .context import APP_CONTEXT
-from .utils import list_files
+from .utils import (list_files, extend_default)
 from .decorator import handle_application_exception
 from .external import OdometerSource
 
@@ -43,6 +43,11 @@ class Bootstrap(object):
         with open(os.path.join(os.getcwd(), 'config.json')) as json_data:
             app_conf = (json.load(json_data))
 
+        extend_default(app_conf, {
+            'devices': [],
+            'can_parser': 'DefaultParser',
+            'use_odo_transfer': False})
+
         # load device config
         device_config_paths = list_files(
             os.path.join(os.getcwd(), 'configs', 'devices'))
@@ -57,12 +62,6 @@ class Bootstrap(object):
                     app_conf['devices'] = []
 
                 app_conf['devices'].append(device_conf)
-
-        if not app_conf.__contains__('devices'):
-            app_conf['devices'] = []
-
-        if not app_conf.__contains__('can_parser'):
-            app_conf['can_parser'] = 'DefaultParser'
 
         return app_conf
 
@@ -163,15 +162,16 @@ class Bootstrap(object):
             time.sleep(10)
 
     @handle_application_exception
-    def start_v2(self, network_interface: NetworkInterface, devices: list, with_odo_transfer=False):
+    def start_v2(self, network_interface: NetworkInterface, devices: list):
         self._create_devices(network_interface, devices)
         self._start_ntrip_client()
         threading.Thread(target=lambda: self._start_debug_track()).start()
 
-        if with_odo_transfer:
+        use_odo_transfer = self._conf['use_odo_transfer']
+        if use_odo_transfer:
             devices_mac = [
                 item['device']._device_mac for item in self._devices]
-            odometer_process = threading.Thread(
+            odometer_process = Process(
                 target=gen_odometer_process,
                 args=(self._conf['local'], devices_mac, self._conf['can_parser']))
             odometer_process.start()

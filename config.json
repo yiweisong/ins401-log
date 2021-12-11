@@ -6,5 +6,6 @@
         "username": "ymj_123",
         "password": "SIGEMZOOMQ1JDJI3"
     },
+    "use_odo_transfer": false,
     "can_parser": "DefaultParser"
 }
