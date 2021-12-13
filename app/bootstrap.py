@@ -20,7 +20,8 @@ def format_app_context_packet_data():
     return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 
-def gen_odometer_process(conf, devices_mac: list, can_parser_type):
+def gen_odometer_process(conf, devices_mac: list, can_parser_type, logger_ctx):
+    app_logger.LogContext.update(logger_ctx)
     odo_source = OdometerSource(conf, devices_mac, can_parser_type)
     odo_source.start()
 
@@ -171,9 +172,10 @@ class Bootstrap(object):
         if use_odo_transfer:
             devices_mac = [
                 item['device']._device_mac for item in self._devices]
+
             odometer_process = Process(
                 target=gen_odometer_process,
-                args=(self._conf['local'], devices_mac, self._conf['can_parser']))
+                args=(self._conf['local'], devices_mac, self._conf['can_parser'], app_logger.LogContext.to_dict()))
             odometer_process.start()
 
         print('Application started')

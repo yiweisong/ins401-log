@@ -6,7 +6,10 @@ import threading
 import json
 import decimal
 from scapy.all import (AsyncSniffer, sendp, NetworkInterface)
-from scapy.arch.libpcap import open_pcap
+try:
+    from scapy.arch.libpcap import open_pcap
+except:
+    def open_pcap(): return None
 from scapy.packet import Packet
 
 from scapy.data import MTU
