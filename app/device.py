@@ -544,7 +544,7 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
           device_info['firmware_version'],
           device_conf['mac']))
 
-    time.sleep(0.5)
+    time.sleep(1)
 
     if device_info:
         device_mac = device_conf['mac']
