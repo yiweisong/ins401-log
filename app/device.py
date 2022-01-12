@@ -32,6 +32,7 @@ INS_PKT = b'\x03\n'
 ODO_PKT = b'\x04\n'
 DIAG_PKT = b'\x05\n'
 RTCM_PKT = b'\x06\n'
+GL_PKT = b'\x49\x67'
 PING_PKT = b'\x01\xcc'
 GET_PARAMETER_PKT = b'\x02\xcc'
 SET_PARAMETER_PKT = b'\x03\xcc'
@@ -44,7 +45,8 @@ ETHERNET_OUTPUT_PACKETS = [
     ODO_PKT,  # Odometer
     DIAG_PKT,  # Diagnose
     RTCM_PKT,  # RTCM Rover
-    PING_PKT  # Ping
+    PING_PKT,  # Ping
+    GL_PKT, # GNSS solution integrity packet
 ]
 
 ETHERNET_OUTPUT_PACKETS_MAPPING = {
@@ -54,7 +56,8 @@ ETHERNET_OUTPUT_PACKETS_MAPPING = {
     ODO_PKT: "Odometer",
     DIAG_PKT: "Diagnose",
     RTCM_PKT: "RTCM Rover",
-    PING_PKT: "Ping"
+    PING_PKT: "Ping",
+    GL_PKT: "GL"
 }
 
 
