@@ -57,7 +57,7 @@ ETHERNET_OUTPUT_PACKETS_MAPPING = {
     DIAG_PKT: "Diagnose",
     RTCM_PKT: "RTCM Rover",
     PING_PKT: "Ping",
-    GI_PKT: "GNSS Integrity "
+    GI_PKT: "GNSS Integrity"
 }
 
 
