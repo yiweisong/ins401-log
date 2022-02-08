@@ -12,8 +12,8 @@ class NTRIPClient(EventEmitter):
     def __init__(self, properties):
         super(NTRIPClient, self).__init__()
 
-        self.parser = RTCMParser()
-        self.parser.on('parsed', self.handle_parsed_data)
+        #self.parser = RTCMParser()
+        #self.parser.on('parsed', self.handle_parsed_data)
         self.is_connected = 0
         self.tcp_client_socket = None
         self.is_close = False
@@ -120,7 +120,8 @@ class NTRIPClient(EventEmitter):
             try:
                 data = self.tcp_client_socket.recv(1024)
                 if data:
-                    self.parser.receive(data)
+                    #self.parser.receive(data)
+                    self.emit('parsed', data)
                 else:
                     print('NTRIP:[recv] no data error')
                     log_app.info('NTRIP:[recv] no data error')
@@ -159,4 +160,4 @@ class NTRIPClient(EventEmitter):
         combined_data = []
         for item in data:
             combined_data += item
-        self.emit('parsed', combined_data)
+        # self.emit('parsed', combined_data)
