@@ -47,7 +47,9 @@ class Bootstrap(object):
         extend_default(app_conf, {
             'devices': [],
             'can_parser': 'DefaultParser',
-            'use_odo_transfer': False})
+            'use_odo_transfer': False,
+            'ignore_ntrip': []
+        })
 
         # load device config
         device_config_paths = list_files(
@@ -99,6 +101,11 @@ class Bootstrap(object):
         for item in self._devices:
             device_conf = item['conf']
             device = item['device']
+
+            if self._conf['ignore_ntrip'].__contains__(int(device.device_info['sn'])):
+                print('NTRIP:[ingore sn]', device.device_info['sn'])
+                continue
+
             ntrip_conf = device_conf['ntrip'] if device_conf.__contains__(
                 'ntrip') else self._conf['ntrip']
             ntrip_client = NTRIPClient(ntrip_conf)

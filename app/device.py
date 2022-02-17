@@ -540,7 +540,7 @@ def save_device_info(device_conf, local_network: NetworkInterface, data_log_info
 def do_create_device(device_conf, ping_info, network_interface: NetworkInterface):
     device_info, app_info = parse_ping_info(ping_info)
 
-    print('Initializing device {0}, SN:{1}, Partnumber:{2}, Firmware:{3}, MAC Address:{4}'.format(
+    print('DEVICE:[init] {0}, SN:{1}, Partnumber:{2}, Firmware:{3}, MAC Address:{4}'.format(
           device_info['name'],
           device_info['sn'],
           device_info['pn'],

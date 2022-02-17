@@ -7,5 +7,6 @@
         "password": "SIGEMZOOMQ1JDJI3"
     },
     "use_odo_transfer": false,
-    "can_parser": "DefaultParser"
+    "can_parser": "DefaultParser",
+    "ignore_ntrip": []
 }
