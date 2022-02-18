@@ -566,16 +566,20 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
         try:
             config_parameters(device_conf, network_interface)
         except Exception as ex:
-            print('Fail in config parameter. Device mac {0}, sn {1}'.format(
-                device_mac, device_info['sn']))
+            err_msg = 'Fail in config parameter. Device mac {0}, sn {1}'.format(
+                device_mac, device_info['sn'])
+            print(err_msg)
+            log_app.error(err_msg)
             raise
 
         try:
             save_device_info(device_conf, network_interface,
                              data_log_info, device_info, app_info)
         except Exception as ex:
-            print('Fail in save device info. Device mac {0}, sn {1}'.format(
-                device_mac, device_info['sn']))
+            err_msg = 'Fail in save device info. Device mac {0}, sn {1}'.format(
+                device_mac, device_info['sn'])
+            print(err_msg)
+            log_app.error(err_msg)
             raise
 
         iface = network_interface.name
