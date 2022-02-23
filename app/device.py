@@ -6,7 +6,10 @@ import threading
 import json
 import decimal
 from scapy.all import (AsyncSniffer, sendp, NetworkInterface)
-from scapy.arch.libpcap import open_pcap
+try:
+    from scapy.arch.libpcap import open_pcap
+except:
+    def open_pcap(): return None
 from scapy.packet import Packet
 
 from scapy.data import MTU
@@ -29,6 +32,7 @@ INS_PKT = b'\x03\n'
 ODO_PKT = b'\x04\n'
 DIAG_PKT = b'\x05\n'
 RTCM_PKT = b'\x06\n'
+GI_PKT = b'\x49\x67'
 PING_PKT = b'\x01\xcc'
 GET_PARAMETER_PKT = b'\x02\xcc'
 SET_PARAMETER_PKT = b'\x03\xcc'
@@ -41,7 +45,8 @@ ETHERNET_OUTPUT_PACKETS = [
     ODO_PKT,  # Odometer
     DIAG_PKT,  # Diagnose
     RTCM_PKT,  # RTCM Rover
-    PING_PKT  # Ping
+    PING_PKT,  # Ping
+    GI_PKT, # GNSS solution integrity packet
 ]
 
 ETHERNET_OUTPUT_PACKETS_MAPPING = {
@@ -51,7 +56,8 @@ ETHERNET_OUTPUT_PACKETS_MAPPING = {
     ODO_PKT: "Odometer",
     DIAG_PKT: "Diagnose",
     RTCM_PKT: "RTCM Rover",
-    PING_PKT: "Ping"
+    PING_PKT: "Ping",
+    GI_PKT: "GNSS Integrity"
 }
 
 
@@ -534,14 +540,14 @@ def save_device_info(device_conf, local_network: NetworkInterface, data_log_info
 def do_create_device(device_conf, ping_info, network_interface: NetworkInterface):
     device_info, app_info = parse_ping_info(ping_info)
 
-    print('Initializing device {0}, SN:{1}, Partnumber:{2}, Firmware:{3}, MAC Address:{4}'.format(
+    print('DEVICE:[init] {0}, SN:{1}, Partnumber:{2}, Firmware:{3}, MAC Address:{4}'.format(
           device_info['name'],
           device_info['sn'],
           device_info['pn'],
           device_info['firmware_version'],
           device_conf['mac']))
 
-    time.sleep(0.5)
+    time.sleep(1)
 
     if device_info:
         device_mac = device_conf['mac']
@@ -560,16 +566,20 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
         try:
             config_parameters(device_conf, network_interface)
         except Exception as ex:
-            print('Fail in config parameter. Device mac {0}, sn {1}'.format(
-                device_mac, device_info['sn']))
+            err_msg = 'Fail in config parameter. Device mac {0}, sn {1}'.format(
+                device_mac, device_info['sn'])
+            print(err_msg)
+            log_app.error(err_msg)
             raise
 
         try:
             save_device_info(device_conf, network_interface,
                              data_log_info, device_info, app_info)
         except Exception as ex:
-            print('Fail in save device info. Device mac {0}, sn {1}'.format(
-                device_mac, device_info['sn']))
+            err_msg = 'Fail in save device info. Device mac {0}, sn {1}'.format(
+                device_mac, device_info['sn'])
+            print(err_msg)
+            log_app.error(err_msg)
             raise
 
         iface = network_interface.name

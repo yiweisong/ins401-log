@@ -30,3 +30,11 @@ if __name__ == '__main__':
     for mac_address in mac_addresses:
         sn = convert_mac_to_sn(mac_address)
         print('{0} SN:{1}'.format(mac_address, sn))
+
+    sn_list = [
+        2179000181,
+        2179000034
+    ]
+    for sn in sn_list:
+        mac_address = convert_sn_to_mac(sn)
+        print('{0} MAC:{1}'.format(sn, mac_address))

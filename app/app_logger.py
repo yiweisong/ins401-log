@@ -9,6 +9,20 @@ class LogContext:
     session_path = None
     initalized = False
 
+    def update(ctx: dict):
+        for attr_name in ctx:
+            setattr(LogContext, attr_name, ctx[attr_name])
+
+    def to_dict():
+        attrs = [attr_name for attr_name in dir(
+            LogContext) if not attr_name.startswith('__')]
+
+        dict_obj = {}
+        for attr_name in attrs:
+            dict_obj[attr_name] = getattr(LogContext, attr_name)
+
+        return dict_obj
+
 
 class FileLogger:
     _internal_file_access: FileIO

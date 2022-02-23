@@ -12,8 +12,8 @@ class NTRIPClient(EventEmitter):
     def __init__(self, properties):
         super(NTRIPClient, self).__init__()
 
-        self.parser = RTCMParser()
-        self.parser.on('parsed', self.handle_parsed_data)
+        #self.parser = RTCMParser()
+        #self.parser.on('parsed', self.handle_parsed_data)
         self.is_connected = 0
         self.tcp_client_socket = None
         self.is_close = False
@@ -54,6 +54,7 @@ class NTRIPClient(EventEmitter):
                 print('NTRIP:[request] fail')
                 log_app.info('NTRIP:[request] fail')
                 self.tcp_client_socket.close()
+                self.is_connected = 0
 
     def set_connect_headers(self, headers: dict):
         self.append_header_string = ''
@@ -119,12 +120,14 @@ class NTRIPClient(EventEmitter):
             try:
                 data = self.tcp_client_socket.recv(1024)
                 if data:
-                    self.parser.receive(data)
+                    #self.parser.receive(data)
+                    self.emit('parsed', data)
                 else:
                     print('NTRIP:[recv] no data error')
                     log_app.info('NTRIP:[recv] no data error')
                     log_app.info('NTRIP:[recv] Append header string: {0}'.format(self.append_header_string))
                     self.tcp_client_socket.close()
+                    self.is_connected = 0
                     return
 
             except Exception as e:
@@ -132,6 +135,7 @@ class NTRIPClient(EventEmitter):
                 log_app.error('NTRIP:[recv] exception {0}'.format(e))
                 log_app.error('NTRIP:[recv] Append header string: {0}'.format(self.append_header_string))
                 self.tcp_client_socket.close()
+                self.is_connected = 0
                 return
 
     def recvResponse(self):
@@ -156,4 +160,4 @@ class NTRIPClient(EventEmitter):
         combined_data = []
         for item in data:
             combined_data += item
-        self.emit('parsed', combined_data)
+        # self.emit('parsed', combined_data)

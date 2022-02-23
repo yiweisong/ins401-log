@@ -4,13 +4,13 @@ import json
 
 try:
     from app import utils
-    from app.device import build_config_parameters_command_lines
+    #from app.device import build_config_parameters_command_lines
 except:
     sys.path.append(os.getcwd())
     from app import utils
-    from app.device import build_config_parameters_command_lines
+    #from app.device import build_config_parameters_command_lines
 
-if __name__ == '__main__':
+def test_build_command_lines():
     app_conf={}
     with open(os.path.join(os.getcwd(), 'config.json')) as json_data:
         app_conf = (json.load(json_data))
@@ -41,3 +41,18 @@ if __name__ == '__main__':
         command_lines = build_config_parameters_command_lines(item,app_conf['local'])
         for command_line in command_lines:
             print(command_line)
+
+def test_extend_default_values():
+    app_conf = {}
+    with open(os.path.join(os.getcwd(), 'config.json')) as json_data:
+        app_conf = (json.load(json_data))
+
+    utils.extend_default(app_conf, {
+        'devices': [],
+        'can_parser': 'DefaultParser',
+        'use_odo_transfer': False})
+
+    print(app_conf)
+
+if __name__ == '__main__':
+    test_extend_default_values()
