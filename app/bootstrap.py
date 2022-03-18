@@ -6,7 +6,7 @@ from typing import List
 from multiprocessing import Process
 from scapy.interfaces import NetworkInterface
 from . import app_logger
-from .debug import track_log_status
+from .debug import (track_log_status, log_app)
 from .ntrip_client import NTRIPClient
 from .device import (do_create_device,
                      send_ping_command, INS401)
@@ -46,6 +46,7 @@ class Bootstrap(object):
 
         extend_default(app_conf, {
             'devices': [],
+            'ntrip': None,
             'can_parser': 'DefaultParser',
             'use_odo_transfer': False,
             'ignore_ntrip': []
@@ -108,6 +109,10 @@ class Bootstrap(object):
 
             ntrip_conf = device_conf['ntrip'] if device_conf.__contains__(
                 'ntrip') else self._conf['ntrip']
+
+            if not ntrip_conf:
+                continue
+
             ntrip_client = NTRIPClient(ntrip_conf)
             ntrip_client.on('parsed', self._handle_parse_ntrip_data(device))
             sn = device.device_info['sn']
@@ -132,11 +137,12 @@ class Bootstrap(object):
                 track_log_status(str_log_info)
 
                 # Send ping command to device per 60s to check if device is alive
-                if check_count % 60 == 0:
+                if check_count == 60:
                     for item in self._devices:
                         send_ping_command(item['device'])
+                    check_count = 0
             except Exception as ex:
-                track_log_status(ex)
+                log_app.error(ex)
 
     def format_log_info(self):
         for item in self._devices:
