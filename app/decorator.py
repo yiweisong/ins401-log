@@ -13,6 +13,8 @@ def _build_args():
 
     parser.add_argument("-R", "--reset", dest="reset",  action='store_true',
                         help="Reset local ethernet cache", default=False)
+    parser.add_argument("--keep-detect", dest="keep_detect",  action='store_true',
+                        help="Skip Detect Confirm", default=False)
 
     return parser.parse_args()
 

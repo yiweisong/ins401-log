@@ -20,6 +20,7 @@ from terminal_layout.extensions.choice import *
 import signal
 import os
 import json
+import time
 
 
 def kill_app(signal_int, call_back):
@@ -79,11 +80,18 @@ def select_ethernet_interface():
     return None
 
 
-def detect_devices(iface: NetworkInterface):
+def detect_devices(iface: NetworkInterface,args):
     step_next = False
     devices = []
     while not step_next:
         devices = collect_devices(iface)
+
+        if args.keep_detect:
+            if len(devices) == 0:
+                time.sleep(15)
+                continue
+            return devices
+
         c = Choice('We have find {0} device(s), start to log?'.format(len(devices)),
                    ['Yes', 'No'],
                    icon_style=StringStyle(fore=Fore.green),
@@ -134,7 +142,7 @@ def prepare(args):
 def main(**kwargs):
     prepare(kwargs['options'])
     iface = select_ethernet_interface()
-    devices = detect_devices(iface)
+    devices = detect_devices(iface,kwargs['options'])
     data_collect(iface, devices)
 
 if __name__ == '__main__':
