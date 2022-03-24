@@ -145,8 +145,8 @@ class Bootstrap(object):
                 log_app.error(ex)
 
     def format_log_info(self):
-        for item in self._devices:
-            item['device'].update_received_packet_info()
+        # for item in self._devices:
+        #     item['device'].update_received_packet_info()
 
         return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
