@@ -1,6 +1,7 @@
 import time
 import json
 import os
+import struct
 import threading
 from typing import List
 from multiprocessing import Process
@@ -49,7 +50,8 @@ class Bootstrap(object):
             'ntrip': None,
             'can_parser': 'DefaultParser',
             'use_odo_transfer': False,
-            'ignore_ntrip': []
+            'ignore_ntrip': [],
+            'append_listen_packets': []
         })
 
         # load device config
@@ -71,6 +73,16 @@ class Bootstrap(object):
 
     def _create_devices(self, network_interface: NetworkInterface, devices: list):
         self._conf = self._load_conf()
+        if len(self._conf['append_listen_packets'] > 0):
+            for item in self._conf['append_listen_packets']:
+                try:
+                    item_name = item['name']
+                    bytes_value = struct.pack('>H', int(item['value'], 16))
+                    APP_CONTEXT.output_packets.append(bytes_value)
+                    APP_CONTEXT.output_packets_mapping[bytes_value] = item_name
+                except Exception as ex:
+                    log_app.error(ex)
+
         self._devices = []
         for device in devices:
             DEFAULT_ITEM = {'mac': device['mac']}
@@ -151,32 +163,7 @@ class Bootstrap(object):
         return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
     @handle_application_exception
-    def start(self):
-        ''' prepare
-            1. ping device from configuration
-            2. collect the ping result, start log client
-            3. start ntrip client
-        '''
-        # self._ping_devices()
-
-        self._start_ntrip_client()
-
-        # thread to start debug track
-        threading.Thread(target=lambda: self._start_debug_track()).start()
-
-        devices_mac = [item._device_mac for item in self._devices]
-        odometer_process = Process(
-            target=gen_odometer_process,
-            args=(self._conf['local'], devices_mac, ))
-        odometer_process.start()
-
-        print('Application started')
-
-        while True:
-            time.sleep(10)
-
-    @handle_application_exception
-    def start_v2(self, network_interface: NetworkInterface, devices: list):
+    def start(self, network_interface: NetworkInterface, devices: list):
         self._create_devices(network_interface, devices)
         self._start_ntrip_client()
         threading.Thread(target=lambda: self._start_debug_track()).start()

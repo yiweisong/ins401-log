@@ -110,12 +110,6 @@ def detect_devices(iface: NetworkInterface,args):
     return devices
 
 
-def data_collect(network_interface, devices):
-    '''
-    device: dict({'mac','info'})
-    '''
-    Bootstrap().start_v2(network_interface, devices)
-
 def prepare(args):
     if args.reset:
         app_conf:Dict = {}
@@ -143,7 +137,7 @@ def main(**kwargs):
     prepare(kwargs['options'])
     iface = select_ethernet_interface()
     devices = detect_devices(iface,kwargs['options'])
-    data_collect(iface, devices)
+    Bootstrap().start(iface, devices)
 
 if __name__ == '__main__':
     try:

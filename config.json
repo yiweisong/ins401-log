@@ -8,5 +8,6 @@
     },
     "use_odo_transfer": false,
     "can_parser": "DefaultParser",
-    "ignore_ntrip": []
+    "ignore_ntrip": [],
+    "append_listen_packets": []
 }

@@ -16,7 +16,8 @@ from scapy.data import MTU
 from . import message
 from . import app_logger
 from .ntrip_client import NTRIPClient
-from .context import APP_CONTEXT
+from .context import (APP_CONTEXT, RTCM_PKT, PING_PKT,
+                      GET_PARAMETER_PKT, SET_PARAMETER_PKT, SAVE_CONFIG_PKT)
 from .debug import log_app
 
 PING_RESULT = {}
@@ -24,40 +25,6 @@ GET_PARAMETER_RESULT = {}
 MODULE_REFS = {
     'GLOBAL_CANCEL': False,
     'PING_RESULT': {}
-}
-
-IMU_PKT = b'\x01\n'
-GNSS_PKT = b'\x02\n'
-INS_PKT = b'\x03\n'
-ODO_PKT = b'\x04\n'
-DIAG_PKT = b'\x05\n'
-RTCM_PKT = b'\x06\n'
-GI_PKT = b'\x49\x67'
-PING_PKT = b'\x01\xcc'
-GET_PARAMETER_PKT = b'\x02\xcc'
-SET_PARAMETER_PKT = b'\x03\xcc'
-SAVE_CONFIG_PKT = b'\x04\xcc'
-
-ETHERNET_OUTPUT_PACKETS = [
-    IMU_PKT,  # IMU
-    GNSS_PKT,  # GNSS
-    INS_PKT,  # INS
-    ODO_PKT,  # Odometer
-    DIAG_PKT,  # Diagnose
-    RTCM_PKT,  # RTCM Rover
-    PING_PKT,  # Ping
-    GI_PKT, # GNSS solution integrity packet
-]
-
-ETHERNET_OUTPUT_PACKETS_MAPPING = {
-    IMU_PKT: 'IMU',
-    GNSS_PKT: 'GNSS',
-    INS_PKT: "INS",
-    ODO_PKT: "Odometer",
-    DIAG_PKT: "Diagnose",
-    RTCM_PKT: "RTCM Rover",
-    PING_PKT: "Ping",
-    GI_PKT: "GNSS Integrity"
 }
 
 
@@ -106,7 +73,7 @@ class INS401(object):
         self._enable_send_parsed_nmea = value
 
     def _do_init(self):
-        for key in ETHERNET_OUTPUT_PACKETS:
+        for key in APP_CONTEXT.output_packets:
             if key == RTCM_PKT:
                 self._received_packet_info[key] = {
                     'size': 0,
@@ -184,7 +151,7 @@ class INS401(object):
         received_packet_info = {}
 
         for key in self._received_packet_info.keys():
-            key_desc = ETHERNET_OUTPUT_PACKETS_MAPPING.get(key)
+            key_desc = APP_CONTEXT.output_packets_mapping.get(key)
             if key_desc:
                 received_packet_info[key_desc] = self._received_packet_info[key]
 
@@ -214,18 +181,6 @@ class INS401(object):
             start log
         '''
         filter_exp = 'ether src host {0}'.format(self._device_mac)
-
-        # async_sniffer = AsyncSniffer(
-        #     count=0,
-        #     store=0,
-        #     iface=self._iface,
-        #     prn=self.handle_receive_packet,
-        #     filter=filter_exp
-        # )
-
-        # async_sniffer.start()
-
-        # self._async_sniffer = async_sniffer
 
         self.thread = threading.Thread(target=self.raw_sniff, args=(
             self.handle_receive_packet, filter_exp,))
@@ -648,7 +603,7 @@ def try_parse_ethernet_data(data):
     ethernet_packet_type = data[16:18]
     packet_info = None
 
-    if ETHERNET_OUTPUT_PACKETS.__contains__(ethernet_packet_type):
+    if ethernet_packet_type in APP_CONTEXT.output_packets:
         is_eth_100base_t1 = True
         packet_len = struct.unpack('<H', data[12:14])[0]
         raw = data[14:14+packet_len]
