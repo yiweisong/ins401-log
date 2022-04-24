@@ -1,12 +1,13 @@
 import time
 import json
 import os
+import struct
 import threading
 from typing import List
 from multiprocessing import Process
 from scapy.interfaces import NetworkInterface
 from . import app_logger
-from .debug import track_log_status
+from .debug import (track_log_status, log_app)
 from .ntrip_client import NTRIPClient
 from .device import (do_create_device,
                      send_ping_command, INS401)
@@ -46,9 +47,11 @@ class Bootstrap(object):
 
         extend_default(app_conf, {
             'devices': [],
+            'ntrip': None,
             'can_parser': 'DefaultParser',
             'use_odo_transfer': False,
-            'ignore_ntrip': []
+            'ignore_ntrip': [],
+            'append_listen_packets': []
         })
 
         # load device config
@@ -70,6 +73,16 @@ class Bootstrap(object):
 
     def _create_devices(self, network_interface: NetworkInterface, devices: list):
         self._conf = self._load_conf()
+        if len(self._conf['append_listen_packets'] > 0):
+            for item in self._conf['append_listen_packets']:
+                try:
+                    item_name = item['name']
+                    bytes_value = struct.pack('>H', int(item['value'], 16))
+                    APP_CONTEXT.output_packets.append(bytes_value)
+                    APP_CONTEXT.output_packets_mapping[bytes_value] = item_name
+                except Exception as ex:
+                    log_app.error(ex)
+
         self._devices = []
         for device in devices:
             DEFAULT_ITEM = {'mac': device['mac']}
@@ -108,6 +121,10 @@ class Bootstrap(object):
 
             ntrip_conf = device_conf['ntrip'] if device_conf.__contains__(
                 'ntrip') else self._conf['ntrip']
+
+            if not ntrip_conf:
+                continue
+
             ntrip_client = NTRIPClient(ntrip_conf)
             ntrip_client.on('parsed', self._handle_parse_ntrip_data(device))
             sn = device.device_info['sn']
@@ -132,45 +149,21 @@ class Bootstrap(object):
                 track_log_status(str_log_info)
 
                 # Send ping command to device per 60s to check if device is alive
-                if check_count % 60 == 0:
+                if check_count == 60:
                     for item in self._devices:
                         send_ping_command(item['device'])
+                    check_count = 0
             except Exception as ex:
-                track_log_status(ex)
+                log_app.error(ex)
 
     def format_log_info(self):
-        for item in self._devices:
-            item['device'].update_received_packet_info()
+        # for item in self._devices:
+        #     item['device'].update_received_packet_info()
 
         return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
     @handle_application_exception
-    def start(self):
-        ''' prepare
-            1. ping device from configuration
-            2. collect the ping result, start log client
-            3. start ntrip client
-        '''
-        # self._ping_devices()
-
-        self._start_ntrip_client()
-
-        # thread to start debug track
-        threading.Thread(target=lambda: self._start_debug_track()).start()
-
-        devices_mac = [item._device_mac for item in self._devices]
-        odometer_process = Process(
-            target=gen_odometer_process,
-            args=(self._conf['local'], devices_mac, ))
-        odometer_process.start()
-
-        print('Application started')
-
-        while True:
-            time.sleep(10)
-
-    @handle_application_exception
-    def start_v2(self, network_interface: NetworkInterface, devices: list):
+    def start(self, network_interface: NetworkInterface, devices: list):
         self._create_devices(network_interface, devices)
         self._start_ntrip_client()
         threading.Thread(target=lambda: self._start_debug_track()).start()
