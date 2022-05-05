@@ -73,7 +73,7 @@ class Bootstrap(object):
 
     def _create_devices(self, network_interface: NetworkInterface, devices: list):
         self._conf = self._load_conf()
-        if len(self._conf['append_listen_packets'] > 0):
+        if len(self._conf['append_listen_packets']) > 0:
             for item in self._conf['append_listen_packets']:
                 try:
                     item_name = item['name']
