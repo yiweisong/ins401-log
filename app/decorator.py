@@ -5,6 +5,8 @@ import signal
 import traceback
 from functools import wraps
 
+IS_WINDOWS = sys.platform.__contains__('win32') or sys.platform.__contains__('win64')
+
 def _build_args():
     """parse input arguments
     """
@@ -44,5 +46,18 @@ def receive_args(func):
     def decorated(*args, **kwargs):
         options = _build_args()
         kwargs['options'] = options
+        func(*args, **kwargs)
+    return decorated
+
+def platform_setup(func):
+    '''
+    do some prepare work for different platform
+    '''
+    if IS_WINDOWS:
+        from .platform import win
+        win.disable_console_quick_edit_mode()
+    
+    @wraps(func)
+    def decorated(*args, **kwargs):
         func(*args, **kwargs)
     return decorated

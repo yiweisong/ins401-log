@@ -12,7 +12,7 @@
 '''
 from typing import Dict
 from app.bootstrap import Bootstrap
-from app.decorator import receive_args
+from app.decorator import (receive_args,platform_setup)
 from app.device import collect_devices
 from scapy.all import conf, resolve_iface, NetworkInterface
 from terminal_layout import *
@@ -132,6 +132,7 @@ def prepare(args):
             print('Write configuration failed')
             return None
 
+@platform_setup
 @receive_args
 def main(**kwargs):
     prepare(kwargs['options'])
