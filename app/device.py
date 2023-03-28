@@ -16,9 +16,10 @@ from scapy.data import MTU
 from . import message
 from . import app_logger
 from .ntrip_client import NTRIPClient
-from .context import (APP_CONTEXT, RTCM_PKT, PING_PKT,
+from .context import (APP_CONTEXT, RTCM_PKT, RTCM_PKT2, PING_PKT,
                       GET_PARAMETER_PKT, SET_PARAMETER_PKT, SAVE_CONFIG_PKT)
 from .debug import log_app
+from abc import ABCMeta, abstractmethod
 
 PING_RESULT = {}
 GET_PARAMETER_RESULT = {}
@@ -27,8 +28,7 @@ MODULE_REFS = {
     'PING_RESULT': {}
 }
 
-
-class INS401(object):
+class INSBase(object):
     def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
         self._iface = iface
         self._machine_mac = machine_mac
@@ -39,16 +39,6 @@ class INS401(object):
         self._async_sniffer = None
         self._enable_send_parsed_nmea = False
         self._received_packet_info = {}
-
-        self._data_log_path = data_log_info['data_log_path']
-        self._user_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
-        self._rtcm_rover_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
-        self._rtcm_base_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'rtcm_base_' + data_log_info['file_time']))
-        # self._raw_logger = app_logger.create_logger(
-        #    os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
 
         self._do_init()
 
@@ -72,15 +62,9 @@ class INS401(object):
     def enable_send_parsed_nmea(self, value: bool):
         self._enable_send_parsed_nmea = value
 
+    @abstractmethod
     def _do_init(self):
-        for key in APP_CONTEXT.output_packets:
-            if key == RTCM_PKT:
-                self._received_packet_info[key] = {
-                    'size': 0,
-                    'count': 0
-                }
-            else:
-                self._received_packet_info[key] = 0
+        pass
 
     def recv(self, data):
         if self._rtcm_base_logger:
@@ -98,45 +82,9 @@ class INS401(object):
     def set_ntrip_client(self, ntrip_client: NTRIPClient):
         self._ntrip_client = ntrip_client
 
+    @abstractmethod
     def handle_receive_packet(self, data):
-        # try parse the data
-        bytes_data = bytes(data)
-        # for debug
-        # self._raw_logger.append(bytes_data)
-
-        is_nmea, str_gga, with_nmea_error = try_parse_nmea(bytes_data)
-        if is_nmea:
-            self._append_to_app_context_packet_data('nmea')
-
-            self._user_logger.append(bytes_data)
-
-            if self._ntrip_client and str_gga:
-                self._ntrip_client.send(str_gga)
-            return
-
-        if with_nmea_error:
-            log_app.error('{0}: Fail while parse a nmea packet. Reason:{1}'.format(
-                self._device_info['sn'], with_nmea_error['message']))
-
-        is_eth_100base_t1, packet_info = try_parse_ethernet_data(
-            bytes_data)
-        if is_eth_100base_t1:
-            self._append_to_app_context_packet_data(
-                str(packet_info['packet_type']))
-
-            byte_packet_type = packet_info['packet_type']
-            if byte_packet_type == RTCM_PKT:
-                self._rtcm_rover_logger.append(packet_info['payload'])
-
-                current_rtcm_log_info = self._received_packet_info[byte_packet_type]
-                self._received_packet_info[byte_packet_type] = {
-                    'size': current_rtcm_log_info['size'] + packet_info['payload_len'],
-                    'count': current_rtcm_log_info['count']+1
-                }
-            else:
-                self._user_logger.append(packet_info['raw'])
-                self._received_packet_info[byte_packet_type] += 1
-            return
+        pass
 
     def _append_to_app_context_packet_data(self, str_key):
         if str_key in APP_CONTEXT.packet_data.keys():
@@ -192,6 +140,138 @@ class INS401(object):
         if self.thread:
             self.continue_sniff = False
             self.thread.join()
+
+
+class INS401(INSBase):
+    def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
+        super(INS401, self).__init__(iface,  machine_mac, device_mac, data_log_info, device_info, app_info)
+
+        self._data_log_path = data_log_info['data_log_path']
+        self._user_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
+        self._rtcm_rover_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
+        self._rtcm_base_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'rtcm_base_' + data_log_info['file_time']))
+        # self._raw_logger = app_logger.create_logger(
+        #    os.path.join(self._data_log_path, 'raw_' + data_log_info['file_time']))
+
+        self._do_init()
+
+
+    def _do_init(self):
+        for key in APP_CONTEXT.output_packets:
+            if key == RTCM_PKT:
+                self._received_packet_info[key] = {
+                    'size': 0,
+                    'count': 0
+                }
+            else:
+                self._received_packet_info[key] = 0
+
+    def handle_receive_packet(self, data):
+        # try parse the data
+        bytes_data = bytes(data)
+        # for debug
+        # self._raw_logger.append(bytes_data)
+
+        is_nmea, str_gga, with_nmea_error = try_parse_nmea(bytes_data)
+        if is_nmea:
+            self._append_to_app_context_packet_data('nmea')
+
+            self._user_logger.append(bytes_data)
+
+            if self._ntrip_client and str_gga:
+                self._ntrip_client.send(str_gga)
+            return
+
+        if with_nmea_error:
+            log_app.error('{0}: Fail while parse a nmea packet. Reason:{1}'.format(
+                self._device_info['sn'], with_nmea_error['message']))
+
+        is_eth_100base_t1, packet_info = try_parse_ethernet_data(
+            bytes_data)
+        if is_eth_100base_t1:
+            self._append_to_app_context_packet_data(
+                str(packet_info['packet_type']))
+
+            byte_packet_type = packet_info['packet_type']
+            if byte_packet_type == RTCM_PKT:
+                self._rtcm_rover_logger.append(packet_info['payload'])
+
+                current_rtcm_log_info = self._received_packet_info[byte_packet_type]
+                self._received_packet_info[byte_packet_type] = {
+                    'size': current_rtcm_log_info['size'] + packet_info['payload_len'],
+                    'count': current_rtcm_log_info['count']+1
+                }
+            else:
+                self._user_logger.append(packet_info['raw'])
+                self._received_packet_info[byte_packet_type] += 1
+            return
+
+
+class INS402(INSBase):
+    def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
+        super(INS401, self).__init__(iface,  machine_mac, device_mac, data_log_info, device_info, app_info)
+
+        self._data_log_path = data_log_info['data_log_path']
+        self._user_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
+        self._rtcm_rover_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'rtcm_rover1_' + data_log_info['file_time']))
+        self._rtcm_rover2_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'rtcm_rover2_' + data_log_info['file_time']))
+        self._rtcm_base_logger = app_logger.create_logger(
+            os.path.join(self._data_log_path, 'rtcm_base_' + data_log_info['file_time']))
+
+
+    def handle_receive_packet(self, data):
+        # try parse the data
+        bytes_data = bytes(data)
+        # for debug
+        # self._raw_logger.append(bytes_data)
+
+        is_nmea, str_gga, with_nmea_error = try_parse_nmea(bytes_data)
+        if is_nmea:
+            self._append_to_app_context_packet_data('nmea')
+
+            self._user_logger.append(bytes_data)
+
+            if self._ntrip_client and str_gga:
+                self._ntrip_client.send(str_gga)
+            return
+
+        if with_nmea_error:
+            log_app.error('{0}: Fail while parse a nmea packet. Reason:{1}'.format(
+                self._device_info['sn'], with_nmea_error['message']))
+
+        is_eth_100base_t1, packet_info = try_parse_ethernet_data(
+            bytes_data)
+        if is_eth_100base_t1:
+            self._append_to_app_context_packet_data(
+                str(packet_info['packet_type']))
+
+            byte_packet_type = packet_info['packet_type']
+            if byte_packet_type == RTCM_PKT:
+                self._rtcm_rover_logger.append(packet_info['payload'])
+
+                current_rtcm_log_info = self._received_packet_info[byte_packet_type]
+                self._received_packet_info[byte_packet_type] = {
+                    'size': current_rtcm_log_info['size'] + packet_info['payload_len'],
+                    'count': current_rtcm_log_info['count']+1
+                }
+            elif byte_packet_type == RTCM_PKT2:
+                self._rtcm_rover2_logger.append(packet_info['payload'])
+
+                current_rtcm_log_info = self._received_packet_info[byte_packet_type]
+                self._received_packet_info[byte_packet_type] = {
+                    'size': current_rtcm_log_info['size'] + packet_info['payload_len'],
+                    'count': current_rtcm_log_info['count']+1
+                }
+            else:
+                self._user_logger.append(packet_info['raw'])
+                self._received_packet_info[byte_packet_type] += 1
+            return
 
 
 def handle_collect_device_packet(data: Packet):
@@ -492,6 +572,17 @@ def save_device_info(device_conf, local_network: NetworkInterface, data_log_info
                   ensure_ascii=False)
 
 
+def check_model(device_info_name: str):
+    model = ''
+
+    if device_info_name.find('INS401') > 0:
+        model = 'INS401'
+
+    if device_info_name.find('INS402') > 0:
+        model = 'INS402'
+
+    return model
+
 def do_create_device(device_conf, ping_info, network_interface: NetworkInterface):
     device_info, app_info = parse_ping_info(ping_info)
 
@@ -504,43 +595,53 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
 
     time.sleep(1)
 
-    if device_info:
-        device_mac = device_conf['mac']
-        current_time = time.localtime()
-        dir_time = time.strftime(
-            "%Y%m%d_%H%M%S", current_time)
-        file_time = time.strftime(
-            "%Y_%m_%d_%H_%M_%S", current_time)
-        data_log_path = '{0}_log_{1}'.format('ins401', dir_time)
+    if not device_info:
+        return
 
-        data_log_info = {
-            'file_time': file_time,
-            'data_log_path': data_log_path
-        }
+    model = check_model(device_info['name'])
 
-        try:
-            config_parameters(device_conf, network_interface)
-        except Exception as ex:
-            err_msg = 'Fail in config parameter. Device mac {0}, sn {1}'.format(
-                device_mac, device_info['sn'])
-            print(err_msg)
-            log_app.error(err_msg)
-            raise
+    device_mac = device_conf['mac']
+    current_time = time.localtime()
+    dir_time = time.strftime(
+        "%Y%m%d_%H%M%S", current_time)
+    file_time = time.strftime(
+        "%Y_%m_%d_%H_%M_%S", current_time)
+    data_log_path = '{0}_log_{1}'.format(model.lower(), dir_time)
 
-        try:
-            save_device_info(device_conf, network_interface,
-                             data_log_info, device_info, app_info)
-        except Exception as ex:
-            err_msg = 'Fail in save device info. Device mac {0}, sn {1}'.format(
-                device_mac, device_info['sn'])
-            print(err_msg)
-            log_app.error(err_msg)
-            raise
+    data_log_info = {
+        'file_time': file_time,
+        'data_log_path': data_log_path
+    }
 
-        iface = network_interface.name
-        machine_mac = network_interface.mac
+    try:
+        config_parameters(device_conf, network_interface)
+    except Exception as ex:
+        err_msg = 'Fail in config parameter. Device mac {0}, sn {1}'.format(
+            device_mac, device_info['sn'])
+        print(err_msg)
+        log_app.error(err_msg)
+        raise
 
+    try:
+        save_device_info(device_conf, network_interface,
+                         data_log_info, device_info, app_info)
+    except Exception as ex:
+        err_msg = 'Fail in save device info. Device mac {0}, sn {1}'.format(
+            device_mac, device_info['sn'])
+        print(err_msg)
+        log_app.error(err_msg)
+        raise
+
+    iface = network_interface.name
+    machine_mac = network_interface.mac
+
+    if model == 'INS401':
         return INS401(iface, machine_mac, device_mac, data_log_info, device_info, app_info)
+
+    if model == 'INS402':
+        return INS402(iface, machine_mac, device_mac, data_log_info, device_info, app_info)
+
+    return None
 
 
 def nmea_checksum(data):
