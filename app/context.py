@@ -18,7 +18,8 @@ ETHERNET_OUTPUT_PACKETS = [
     INS_PKT,  # INS
     ODO_PKT,  # Odometer
     DIAG_PKT,  # Diagnose
-    RTCM_PKT,  # RTCM Rover
+    RTCM_PKT,  # RTCM Rover1
+    RTCM_PKT2, # RTCM Rover2
     PING_PKT,  # Ping
     GI_PKT,  # GNSS solution integrity packet
     FD_PKT,  # FD
@@ -30,7 +31,8 @@ ETHERNET_OUTPUT_PACKETS_MAPPING = {
     INS_PKT: "INS",
     ODO_PKT: "Odometer",
     DIAG_PKT: "Diagnose",
-    RTCM_PKT: "RTCM Rover",
+    RTCM_PKT: "RTCM Rover1",
+    RTCM_PKT2: "RTCM Rover2",
     PING_PKT: "Ping",
     GI_PKT: "GNSS Integrity",
     FD_PKT: "FD",

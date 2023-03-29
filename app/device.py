@@ -212,7 +212,7 @@ class INS401(INSBase):
 
 class INS402(INSBase):
     def __init__(self, iface,  machine_mac, device_mac, data_log_info, device_info, app_info):
-        super(INS401, self).__init__(iface,  machine_mac, device_mac, data_log_info, device_info, app_info)
+        super(INS402, self).__init__(iface,  machine_mac, device_mac, data_log_info, device_info, app_info)
 
         self._data_log_path = data_log_info['data_log_path']
         self._user_logger = app_logger.create_logger(
@@ -224,6 +224,15 @@ class INS402(INSBase):
         self._rtcm_base_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_base_' + data_log_info['file_time']))
 
+    def _do_init(self):
+        for key in APP_CONTEXT.output_packets:
+            if key == RTCM_PKT or key == RTCM_PKT2:
+                self._received_packet_info[key] = {
+                    'size': 0,
+                    'count': 0
+                }
+            else:
+                self._received_packet_info[key] = 0
 
     def handle_receive_packet(self, data):
         # try parse the data
@@ -575,10 +584,10 @@ def save_device_info(device_conf, local_network: NetworkInterface, data_log_info
 def check_model(device_info_name: str):
     model = ''
 
-    if device_info_name.find('INS401') > 0:
+    if device_info_name.find('INS401') > -1:
         model = 'INS401'
 
-    if device_info_name.find('INS402') > 0:
+    if device_info_name.find('INS402') > -1:
         model = 'INS402'
 
     return model
