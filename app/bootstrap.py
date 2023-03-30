@@ -14,17 +14,17 @@ from .device import (do_create_device,
 from .context import APP_CONTEXT
 from .utils import (list_files, extend_default)
 from .decorator import handle_application_exception
-from .external import OdometerSource
+# from .external import OdometerSource
 
 
 def format_app_context_packet_data():
     return ', '.join(['{0}: {1}'.format(key, APP_CONTEXT.packet_data[key]) for key in APP_CONTEXT.packet_data])
 
 
-def gen_odometer_process(conf, devices_mac: list, can_parser_type, logger_ctx):
-    app_logger.LogContext.update(logger_ctx)
-    odo_source = OdometerSource(conf, devices_mac, can_parser_type)
-    odo_source.start()
+# def gen_odometer_process(conf, devices_mac: list, can_parser_type, logger_ctx):
+#     app_logger.LogContext.update(logger_ctx)
+#     odo_source = OdometerSource(conf, devices_mac, can_parser_type)
+#     odo_source.start()
 
 
 class Bootstrap(object):
@@ -168,15 +168,15 @@ class Bootstrap(object):
         self._start_ntrip_client()
         threading.Thread(target=lambda: self._start_debug_track()).start()
 
-        use_odo_transfer = self._conf['use_odo_transfer']
-        if use_odo_transfer:
-            devices_mac = [
-                item['device']._device_mac for item in self._devices]
+        # use_odo_transfer = self._conf['use_odo_transfer']
+        # if use_odo_transfer:
+        #     devices_mac = [
+        #         item['device']._device_mac for item in self._devices]
 
-            odometer_process = Process(
-                target=gen_odometer_process,
-                args=(self._conf['local'], devices_mac, self._conf['can_parser'], app_logger.LogContext.to_dict()))
-            odometer_process.start()
+        #     odometer_process = Process(
+        #         target=gen_odometer_process,
+        #         args=(self._conf['local'], devices_mac, self._conf['can_parser'], app_logger.LogContext.to_dict()))
+        #     odometer_process.start()
 
         print('Application started')
 
