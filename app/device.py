@@ -590,6 +590,9 @@ def check_model(device_info_name: str):
     if device_info_name.find('INS402') > -1:
         model = 'INS402'
 
+    if device_info_name.find('INS502') > -1:
+        model = 'INS502'
+
     return model
 
 def do_create_device(device_conf, ping_info, network_interface: NetworkInterface):
