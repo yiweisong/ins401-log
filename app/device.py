@@ -647,7 +647,7 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
     if model == 'INS401':
         return INS401(iface, machine_mac, device_mac, data_log_info, device_info, app_info)
 
-    if model == 'INS402':
+    if model == 'INS402' or model == 'INS502':
         return INS402(iface, machine_mac, device_mac, data_log_info, device_info, app_info)
 
     return None
