@@ -618,7 +618,7 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
         "%Y%m%d_%H%M%S", current_time)
     file_time = time.strftime(
         "%Y_%m_%d_%H_%M_%S", current_time)
-    data_log_path = '{0}_log_{1}'.format(model.lower(), dir_time)
+    data_log_path = '{0}_log_{1}_{2}'.format(model.lower(), device_info['sn'], dir_time)
 
     data_log_info = {
         'file_time': file_time,
