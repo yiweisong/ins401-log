@@ -148,7 +148,7 @@ class INS401(INSBase):
 
         self._data_log_path = data_log_info['data_log_path']
         self._user_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
+            os.path.join(self._data_log_path, 'user_{0}_{1}'.format(data_log_info['sn'], data_log_info['file_time'])))
         self._rtcm_rover_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_rover_' + data_log_info['file_time']))
         self._rtcm_base_logger = app_logger.create_logger(
@@ -216,7 +216,7 @@ class INS402(INSBase):
 
         self._data_log_path = data_log_info['data_log_path']
         self._user_logger = app_logger.create_logger(
-            os.path.join(self._data_log_path, 'user_' + data_log_info['file_time']))
+            os.path.join(self._data_log_path, 'user_{0}_{1}'.format(data_log_info['sn'], data_log_info['file_time'])))
         self._rtcm_rover_logger = app_logger.create_logger(
             os.path.join(self._data_log_path, 'rtcm_rover1_' + data_log_info['file_time']))
         self._rtcm_rover2_logger = app_logger.create_logger(
@@ -622,7 +622,8 @@ def do_create_device(device_conf, ping_info, network_interface: NetworkInterface
 
     data_log_info = {
         'file_time': file_time,
-        'data_log_path': data_log_path
+        'data_log_path': data_log_path,
+        'sn': device_info['sn']
     }
 
     try:
